@@ -184,3 +184,43 @@ npm install
 # Start the development server
 npm run dev
 ```
+
+### 3. 🔌 Spring Boot REST API (`backend/`)
+The backend exposes the clubs resource at `http://localhost:8080/api/clubs`.
+Create the `campus_connect` MySQL database and provide the credentials through
+environment variables before starting it. In PowerShell:
+
+```bash
+cd backend
+$env:DB_USERNAME="root"
+$env:DB_PASSWORD="your_mysql_password"
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS campus_connect;"
+```
+
+Then start the backend:
+
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+Available REST operations:
+
+| Method | Endpoint | Description |
+| :--- | :--- | :--- |
+| `GET` | `/api/clubs` | List all clubs |
+| `GET` | `/api/clubs/{id}` | Get one club |
+| `POST` | `/api/clubs` | Create a club; `id` is generated when omitted |
+| `PUT` | `/api/clubs/{id}` | Replace an existing club |
+| `DELETE` | `/api/clubs/{id}` | Delete a club |
+
+Example request:
+
+```json
+{
+  "name": "Coding Club",
+  "category": "Technical",
+  "description": "A community for programming and projects.",
+  "membersCount": 0
+}
+```

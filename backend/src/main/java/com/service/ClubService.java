@@ -5,6 +5,7 @@ import com.repository.ClubRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class ClubService {
@@ -24,6 +25,9 @@ public class ClubService {
     }
 
     public Club createClub(Club club) {
+        if (club.getId() == null || club.getId().isBlank()) {
+            club.setId(UUID.randomUUID().toString());
+        }
         return clubRepository.save(club);
     }
 
@@ -45,7 +49,11 @@ public class ClubService {
         return clubRepository.save(existingClub);
     }
 
-    public void deleteClub(String id) {
+    public boolean deleteClub(String id) {
+        if (!clubRepository.existsById(id)) {
+            return false;
+        }
         clubRepository.deleteById(id);
+        return true;
     }
 }

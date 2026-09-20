@@ -3,6 +3,8 @@ package com.entity;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "clubs")
@@ -11,11 +13,17 @@ public class Club {
     @Id
     private String id;
 
+    @NotBlank(message = "name is required")
     private String name;
+
+    @NotBlank(message = "category is required")
     private String category;
+
     private String logo;
     private String cover;
     private String description;
+
+    @Min(value = 0, message = "membersCount cannot be negative")
     private Integer membersCount;
 
     public Club() {
