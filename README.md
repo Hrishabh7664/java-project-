@@ -17,8 +17,6 @@ The ecosystem combines the core strengths of:
 - 🗳️ **Online Campus Elections** — Student council, club, and committee elections with voting and results processing.
 - 🛡️ **Administration & Moderation** — Content moderation, report resolution, and administrative management.
 
-> 📝 **Implementation Note**: This repository currently contains the initial project structure baseline. The detailed feature set described in this documentation represents the planned system vision and architecture for Campus Connect, which will be implemented iteratively.
-
 ---
 
 ## 🏛️ Core Modules
@@ -64,90 +62,126 @@ Campus Connect employs a **Dynamic Role & Permission System**. A student's core 
 User ──► Role ──► Membership / Appointment ──► Position ──► Permissions ──► Features
 ```
 
-### Key Principles:
-- **Scoped Authority**: A student elected as *President of the Coding Club* receives management permissions restricted exclusively to the Coding Club. They cannot manage other clubs or publish official college notices.
-- **Dynamic Progression**: Positions can be assigned via:
-  - Administrative appointment
-  - Successful election victory
-  - Leadership assignment within a club or committee
-
 ---
 
-## 🔄 Example Student Journey
-
-Below is an example of how a student interacts with and progresses through the Campus Connect ecosystem:
-
-```
-[ New Student Joins Platform ]
-              │
-              ▼
-[ Explores Feed, Registers for Events & Follows Coding Club ]
-              │
-              ▼
-[ Submits Join Request ──► Gets Accepted as Member ]
-              │
-              ▼
-[ Joins Faculty-Created Java Group ──► Submits Assignments & Checks Attendance ]
-              │
-              ▼
-[ Appointed as Coding Club President ──► Profile Updates & Club Admin Panel Unlocked ]
-              │
-              ▼
-[ Contests Student Council Election ──► Elected General Secretary ──► Council Permissions Granted ]
-```
-
----
-
-## 🛠️ Intended Technology Stack
-
-The planned architecture for Campus Connect follows a clean decoupled client-server pattern:
+## 💻 Full Stack Architecture (Experiment 05 Integration)
 
 ```
 ┌────────────────────────────────┐
 │      React.js Frontend         │
 │   (HTML5 / CSS3 / JavaScript)  │
 └───────────────┬────────────────┘
-                │  REST API Calls (Axios)
+                │  REST API Calls (Axios / Fetch)
                 ▼
 ┌────────────────────────────────┐
-│    Spring Boot Backend (Java)  │
-│      (RESTful Web Services)    │
+│     REST Controllers           │
+│     (@RestController)          │
 └───────────────┬────────────────┘
-                │  JDBC / JPA
+                │  Injects Service
                 ▼
 ┌────────────────────────────────┐
-│     MySQL Database (Relational)│
+│       Service Layer            │
+│     (@Service Components)      │
+└───────────────┬────────────────┘
+                │  Invokes Repositories
+                ▼
+┌────────────────────────────────┐
+│     Spring Data JPA Repos      │
+│  (extends JpaRepository<T, ID>)│
+└───────────────┬────────────────┘
+                │  Hibernate ORM Mapping
+                ▼
+┌────────────────────────────────┐
+│      MySQL Database            │
+│   (Database: campus_connect)   │
 └────────────────────────────────┘
 ```
 
 | Layer | Technology | Description |
 | :--- | :--- | :--- |
 | **Frontend** | React.js, JavaScript, HTML5, CSS3 | Single Page Application (SPA) providing a responsive user interface |
-| **API Client** | Axios | Promise-based HTTP client for API requests |
-| **Backend** | Java, Spring Boot | RESTful web services delivering business logic and security |
-| **Database** | MySQL | Relational database management system for persistent data storage |
+| **Backend Framework** | Java 17, Spring Boot 3.3.3 | RESTful web services delivering business logic and CRUD endpoints |
+| **Persistence** | Spring Data JPA, Hibernate ORM | Object-Relational Mapping (ORM) and data repositories |
+| **Database** | MySQL 8.0+ | Relational database persistent data storage (`campus_connect`) |
 
 ---
 
-## 🎯 Project Goals
+## 🗄️ Experiment 05: Spring Boot + Spring Data JPA + MySQL
 
-- 🌐 **Unified Campus Platform**: Consolidate disparate college channels into one seamless platform.
-- 💬 **Enhanced Communication**: Bridge communication between students, faculty, clubs, and college administration.
-- 📊 **Centralized Academic Hub**: Simplify assignment tracking, submission feedback, attendance records, and group work.
-- 🔑 **Fine-Grained Access Control**: Implement a flexible permission model matching real-world campus roles.
-- 🗳️ **Transparent Governance**: Digitize campus elections and official administrative notice distribution.
+### Prerequisites
+- Java 17 or higher
+- Apache Maven 3.8+
+- MySQL Server 8.0+
+
+### Step 1: Create Database in MySQL
+```sql
+CREATE DATABASE campus_connect;
+```
+
+### Step 2: Configure Credentials (`backend/src/main/resources/application.properties`)
+```properties
+spring.application.name=campus-connect-api
+
+spring.datasource.url=${DB_URL:jdbc:mysql://localhost:3306/campus_connect?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+spring.datasource.username=${DB_USERNAME:root}
+spring.datasource.password=${DB_PASSWORD:root}
+
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+
+server.port=8080
+```
+
+### Step 3: Persistent JPA Entities & Database Tables
+| Entity | MySQL Table Name | Primary Key (`@Id`) | Key Fields |
+| :--- | :--- | :--- | :--- |
+| `Student` | `students` | `@GeneratedValue Long id` | name, email, department, year, division, bio |
+| `Post` | `posts` | `@GeneratedValue Long id` | authorName, title, content, category, createdAt, voteCount |
+| `Comment` | `comments` | `@GeneratedValue Long id` | postId, authorName, content, createdAt |
+| `Club` | `clubs` | `@GeneratedValue Long id` | name, category, logo, cover, description, department, president, membersCount |
+| `Event` | `events` | `@GeneratedValue Long id` | title, description, organizer, date, time, location, category |
+| `Notice` | `notices` | `@GeneratedValue Long id` | title, content, author, publishedAt, category |
+| `Assignment` | `assignments` | `@GeneratedValue Long id` | title, description, subject, facultyName, dueDate, status |
+| `Election` | `elections` | `@GeneratedValue Long id` | title, position, startDate, endDate, status |
+| `Complaint` | `complaints` | `@GeneratedValue Long id` | title, description, category, status, submittedBy, anonymous |
 
 ---
 
-## 🚀 Future Scope
+## 🔌 REST API Endpoints & CRUD Operations
 
-Future iterations of Campus Connect may explore:
-- 🔔 **Real-Time Notifications**: Instant updates for announcements, assignments, and election results.
-- 💬 **Real-Time Messaging**: Direct messaging and team chat capabilities using WebSockets.
-- 📱 **Mobile Application**: Cross-platform mobile client (React Native / Flutter).
-- 📁 **Cloud Asset Storage**: Integration with cloud storage for assignment resource uploads.
-- 📈 **Campus Analytics**: Insights into student engagement, attendance trends, and event participation.
-- 🔌 **ERP Integration**: Connectors to integrate with existing institutional ERP systems.
+### System Health
+- `GET /api/health` — Returns status UP and database connection info.
+
+### Resource CRUD Endpoints
+All resources (`/api/students`, `/api/posts`, `/api/comments`, `/api/clubs`, `/api/events`, `/api/notices`, `/api/assignments`, `/api/elections`, `/api/complaints`) support full CRUD:
+
+| Operation | HTTP Method | Endpoint | Request Body / Description |
+| :--- | :--- | :--- | :--- |
+| **CREATE** | `POST` | `/api/{resource}` | JSON payload containing entity properties |
+| **READ ALL** | `GET` | `/api/{resource}` | Fetches all entities stored in MySQL |
+| **READ ONE** | `GET` | `/api/{resource}/{id}` | Fetches single entity by primary key ID |
+| **UPDATE** | `PUT` | `/api/{resource}/{id}` | Replaces/updates existing entity record in MySQL |
+| **DELETE** | `DELETE` | `/api/{resource}/{id}` | Removes entity from MySQL by primary key ID |
+
+---
+
+## 🔍 Verification via MySQL Workbench / SQL Commands
+
+After running the backend, open MySQL Workbench or MySQL CLI and run:
+
+```sql
+SHOW DATABASES;
+USE campus_connect;
+SHOW TABLES;
+
+-- Inspect initial seed data created automatically by DataInitializer
+SELECT * FROM students;
+SELECT * FROM posts;
+SELECT * FROM clubs;
+SELECT * FROM events;
+SELECT * FROM notices;
+```
 
 ---
 
@@ -157,70 +191,25 @@ Future iterations of Campus Connect may explore:
 A self-contained, presentation-ready build designed for demonstration and localhost reviews without backend dependencies or login barriers.
 
 ```bash
-# Navigate to the demo directory
 cd demo
-
-# Install dependencies
 npm install
-
-# Start the interactive presentation server
 npm run dev
 ```
-
-Open `http://localhost:3000` to interactively switch between **Student Portal**, **Faculty Workspace**, and **Admin Control Center**.
-
----
 
 ### 2. ⚡ Real Frontend Application (`frontend/`)
-The production client codebase prepared for future Spring Boot REST API + MySQL backend integration.
+The client codebase configured for REST API communication.
 
 ```bash
-# Navigate to the frontend directory
 cd frontend
-
-# Install dependencies
 npm install
-
-# Start the development server
 npm run dev
 ```
 
-### 3. 🔌 Spring Boot REST API (`backend/`)
-The backend exposes the clubs resource at `http://localhost:8080/api/clubs`.
-Create the `campus_connect` MySQL database and provide the credentials through
-environment variables before starting it. In PowerShell:
+### 3. 🔌 Spring Boot Backend (`backend/`)
+Run automated tests and launch Spring Boot backend:
 
 ```bash
 cd backend
-$env:DB_USERNAME="root"
-$env:DB_PASSWORD="your_mysql_password"
-mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS campus_connect;"
-```
-
-Then start the backend:
-
-```bash
-cd backend
+mvn clean test
 mvn spring-boot:run
-```
-
-Available REST operations:
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/api/clubs` | List all clubs |
-| `GET` | `/api/clubs/{id}` | Get one club |
-| `POST` | `/api/clubs` | Create a club; `id` is generated when omitted |
-| `PUT` | `/api/clubs/{id}` | Replace an existing club |
-| `DELETE` | `/api/clubs/{id}` | Delete a club |
-
-Example request:
-
-```json
-{
-  "name": "Coding Club",
-  "category": "Technical",
-  "description": "A community for programming and projects.",
-  "membersCount": 0
-}
 ```

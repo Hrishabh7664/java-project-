@@ -1,8 +1,6 @@
 package com.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 
@@ -11,40 +9,46 @@ import jakarta.validation.constraints.NotBlank;
 public class Club {
 
     @Id
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @NotBlank(message = "name is required")
+    @NotBlank(message = "Name is required")
     private String name;
 
-    @NotBlank(message = "category is required")
+    @NotBlank(message = "Category is required")
     private String category;
 
     private String logo;
     private String cover;
+
+    @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Min(value = 0, message = "membersCount cannot be negative")
-    private Integer membersCount;
+    private String department;
+    private String president;
+
+    @Min(value = 0, message = "Members count cannot be negative")
+    private Integer membersCount = 0;
 
     public Club() {
     }
 
-    public Club(String id, String name, String category, String logo,
-                String cover, String description, Integer membersCount) {
-        this.id = id;
+    public Club(String name, String category, String logo, String cover, String description, String department, String president, Integer membersCount) {
         this.name = name;
         this.category = category;
         this.logo = logo;
         this.cover = cover;
         this.description = description;
-        this.membersCount = membersCount;
+        this.department = department;
+        this.president = president;
+        this.membersCount = membersCount != null ? membersCount : 0;
     }
 
-    public String getId() {
+    public Long getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
@@ -86,6 +90,22 @@ public class Club {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
+    }
+
+    public String getPresident() {
+        return president;
+    }
+
+    public void setPresident(String president) {
+        this.president = president;
     }
 
     public Integer getMembersCount() {
