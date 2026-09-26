@@ -15,7 +15,10 @@ const api = axios.create({
 // Request Interceptor: Attach authorization headers when JWT token is present in security context
 api.interceptors.request.use(
   (config) => {
-    // Placeholder for authorization token attachment when backend Spring Security is connected
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers['Authorization'] = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
@@ -27,7 +30,13 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Intercept 401/403 security errors when real authentication API is live
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
     return Promise.reject(error);
   }
 );

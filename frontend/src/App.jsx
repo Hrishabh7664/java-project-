@@ -64,6 +64,21 @@ import { TeamDetailsFaculty } from './faculty/pages/TeamDetails';
 import { AnnouncementsFaculty } from './faculty/pages/Announcements';
 import { FacultyProfile } from './faculty/pages/FacultyProfile';
 
+// Campus Connect Full Stack Components (Protected)
+import Navbar from './components/Navbar';
+import CampusLogin from './components/Login';
+import Dashboard from './components/Dashboard';
+import PostList from './components/PostList';
+import EventList from './components/EventList';
+import ClubList from './components/ClubList';
+import AssignmentList from './components/AssignmentList';
+import ElectionList from './components/ElectionList';
+import ComplaintForm from './components/ComplaintForm';
+
+// Experiment 3 & 6 Banking & Protected Route Integration
+import BankingDashboard from './banking/BankingDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
+
 import './styles/global.css';
 
 export default function App() {
@@ -73,7 +88,20 @@ export default function App() {
         <Routes>
           {/* Public Landing & Authentication */}
           <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<CampusLogin />} />
+          <Route path="/campus-login" element={<Login />} />
+
+          {/* Campus Connect Protected Application Routes */}
+          <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+          <Route path="/posts" element={<ProtectedRoute><PostList /></ProtectedRoute>} />
+          <Route path="/events" element={<ProtectedRoute><EventList /></ProtectedRoute>} />
+          <Route path="/clubs" element={<ProtectedRoute><ClubList /></ProtectedRoute>} />
+          <Route path="/assignments" element={<ProtectedRoute><AssignmentList /></ProtectedRoute>} />
+          <Route path="/elections" element={<ProtectedRoute><ElectionList /></ProtectedRoute>} />
+          <Route path="/complaints" element={<ProtectedRoute><ComplaintForm /></ProtectedRoute>} />
+
+          {/* Experiment 03 & 06: Banking Dashboard Protected with JWT */}
+          <Route path="/banking" element={<ProtectedRoute><BankingDashboard /></ProtectedRoute>} />
 
           {/* Student Module Routes */}
           <Route path="/student" element={<StudentLayout />}>
