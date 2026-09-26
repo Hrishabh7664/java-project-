@@ -4,21 +4,13 @@ import StatCards from './StatCards';
 import TransactionTable from './TransactionTable';
 import TransferForm from './TransferForm';
 import OpenAccountModal from './OpenAccountModal';
-import {
-  fetchStats,
-  fetchTransactions,
-  fetchAccounts,
-  postTransfer,
-  postNewAccount,
-  logout,
-  getCurrentUser
-} from '../services/apiService';
+import * as apiService from '../services/apiService';
 
 const BankingDashboard = () => {
   const navigate = useNavigate();
-  const currentUser = getCurrentUser();
+  const currentUser = apiService.getCurrentUser();
 
-  // Lifted state management (Experiment 3 Core Architecture)
+  // Lifted state management (Experiment 3 Architecture)
   const [stats, setStats] = useState({
     totalBalance: 0,
     monthlyIncome: 0,
@@ -27,101 +19,78 @@ const BankingDashboard = () => {
   });
   const [transactions, setTransactions] = useState([]);
   const [accounts, setAccounts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [alert, setAlert] = useState(null);
 
-  // Helper to trigger timed user notifications
   const notify = (message, type = 'success') => {
     setAlert({ message, type });
     setTimeout(() => setAlert(null), 5000);
   };
 
-  // Load initial dataset from Spring Boot REST service
-  const loadDashboardData = async () => {
+  const loadData = async () => {
     try {
-      setLoading(true);
+      setBusy(true);
       const [statsData, txData, accData] = await Promise.all([
-        fetchStats(),
-        fetchTransactions(),
-        fetchAccounts()
+        apiService.fetchStats(),
+        apiService.fetchTransactions(),
+        apiService.fetchAccounts()
       ]);
-      setStats(statsData);
-      setTransactions(txData);
-      setAccounts(accData);
+      setStats(statsData || { totalBalance: 0, monthlyIncome: 0, monthlyExpenses: 0, activeAccounts: 0 });
+      setTransactions(txData || []);
+      setAccounts(accData || []);
     } catch (err) {
-      console.error('Error fetching banking data:', err);
-      notify('Failed to load dashboard data. Ensure backend is running.', 'danger');
+      console.error('Error loading banking dashboard data:', err);
+      notify('Failed to load banking data. Ensure backend is running.', 'danger');
     } finally {
-      setLoading(false);
+      setBusy(false);
     }
   };
 
   useEffect(() => {
-    loadDashboardData();
+    loadData();
   }, []);
 
-  // State lifting callback: Execute funds transfer via apiService
   const handleTransfer = async (transferData, onSuccessCallback) => {
     try {
-      setIsSubmitting(true);
-      const newTx = await postTransfer(transferData);
-
-      // Prepend newly created transaction to transaction list (Lifted state update)
-      setTransactions((prev) => [newTx, ...prev]);
-
-      // Re-fetch stats and accounts to reflect updated balances
-      const [updatedStats, updatedAccounts] = await Promise.all([
-        fetchStats(),
-        fetchAccounts()
-      ]);
-      setStats(updatedStats);
-      setAccounts(updatedAccounts);
-
-      notify(`Transfer of $${transferData.amount.toFixed(2)} completed successfully!`, 'success');
+      setBusy(true);
+      await apiService.postTransfer(transferData);
+      await loadData();
+      notify('Transfer completed successfully!', 'success');
       if (onSuccessCallback) onSuccessCallback();
     } catch (err) {
       console.error('Transfer failed:', err);
-      const msg = err.response?.data?.message || err.message || 'Transfer failed. Check balance or recipient.';
+      const msg = err.response?.data?.message || err.message || 'Transfer failed.';
       notify(msg, 'danger');
     } finally {
-      setIsSubmitting(false);
+      setBusy(false);
     }
   };
 
-  // State lifting callback: Open new account via apiService
-  const handleCreateAccount = async (accountData, onSuccessCallback) => {
+  const handleNewAccount = async (accountData, onSuccessCallback) => {
     try {
-      setIsSubmitting(true);
-      const newAcc = await postNewAccount(accountData);
-
-      // Add to accounts list
-      setAccounts((prev) => [...prev, newAcc]);
-
-      // Re-fetch stats
-      const updatedStats = await fetchStats();
-      setStats(updatedStats);
-
-      notify(`Account #${newAcc.accountNumber} created for ${newAcc.holderName}!`, 'success');
+      setBusy(true);
+      await apiService.postNewAccount(accountData);
+      await loadData();
+      notify('New account created successfully!', 'success');
       if (onSuccessCallback) onSuccessCallback();
+      setModalOpen(false);
     } catch (err) {
       console.error('Account creation failed:', err);
       const msg = err.response?.data?.message || err.message || 'Failed to create account.';
       notify(msg, 'danger');
     } finally {
-      setIsSubmitting(false);
+      setBusy(false);
     }
   };
 
   const handleLogout = () => {
-    logout();
+    apiService.logout();
     navigate('/login');
   };
 
   return (
     <div className="d-flex flex-column min-vh-100" style={{ backgroundColor: '#f8fafc' }}>
-      {/* Banking Navbar */}
       <header className="sticky-top shadow-sm bg-white">
         <nav className="navbar navbar-expand-lg navbar-light container py-3">
           <div className="d-flex align-items-center">
@@ -139,7 +108,7 @@ const BankingDashboard = () => {
             <button
               type="button"
               className="btn btn-primary rounded-pill px-4 shadow-sm"
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => setModalOpen(true)}
             >
               <i className="bi bi-plus-circle me-1"></i> Open New Account
             </button>
@@ -174,9 +143,7 @@ const BankingDashboard = () => {
         </nav>
       </header>
 
-      {/* Main Content Area */}
       <main className="flex-grow-1 py-4 container">
-        {/* Dynamic Alert Banner */}
         {alert && (
           <div className={`alert alert-${alert.type} alert-dismissible fade show shadow-sm mb-4`} role="alert">
             <i className={`bi ${alert.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
@@ -185,7 +152,6 @@ const BankingDashboard = () => {
           </div>
         )}
 
-        {/* Dashboard Title & Quick Stats */}
         <div className="d-flex justify-content-between align-items-center mb-4">
           <div>
             <h2 className="h4 fw-bold mb-1 text-dark">Enterprise Banking Dashboard</h2>
@@ -195,23 +161,22 @@ const BankingDashboard = () => {
           </div>
           <button
             className="btn btn-outline-primary btn-sm rounded-pill px-3"
-            onClick={loadDashboardData}
-            disabled={loading}
+            onClick={loadData}
+            disabled={busy}
           >
-            <i className={`bi bi-arrow-clockwise me-1 ${loading ? 'spin' : ''}`}></i> Refresh Ledger
+            <i className={`bi bi-arrow-clockwise me-1 ${busy ? 'spin' : ''}`}></i> Refresh Ledger
           </button>
         </div>
 
-        {/* Component 1: StatCards (Receives lifted state as props) */}
         <StatCards stats={stats} />
 
-        {/* Component 2 & 3: TransferForm & TransactionTable */}
         <div className="row g-4">
           <div className="col-12 col-lg-5">
             <TransferForm
               accounts={accounts}
               onSubmitTransfer={handleTransfer}
-              isSubmitting={isSubmitting}
+              onTransfer={handleTransfer}
+              isSubmitting={busy}
             />
           </div>
           <div className="col-12 col-lg-7">
@@ -220,15 +185,15 @@ const BankingDashboard = () => {
         </div>
       </main>
 
-      {/* Component 4: OpenAccountModal (Receives open/close state & callback) */}
       <OpenAccountModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmitAccount={handleCreateAccount}
-        isSubmitting={isSubmitting}
+        isOpen={modalOpen}
+        show={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSubmitAccount={handleNewAccount}
+        onNewAccount={handleNewAccount}
+        isSubmitting={busy}
       />
 
-      {/* Sticky Footer */}
       <footer className="mt-auto py-3 bg-white border-top text-center text-muted small">
         <div className="container">
           &copy; 2026 Apex Global Banking Portal &middot; Full Stack Java Programming Lab Experiments 01&ndash;06

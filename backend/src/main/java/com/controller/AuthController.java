@@ -60,7 +60,18 @@ public class AuthController {
             String email = user != null ? user.getEmail() : "";
             String role = user != null ? user.getRole().name() : "ROLE_USER";
 
-            return ResponseEntity.ok(new JwtAuthResponseDto(token, loginDto.getUsername(), email, role));
+            Map<String, Object> responseBody = new java.util.LinkedHashMap<>();
+            responseBody.put("token", token);
+            responseBody.put("accessToken", token);
+            responseBody.put("tokenType", "Bearer");
+            responseBody.put("user", Map.of(
+                    "id", user != null && user.getId() != null ? user.getId() : 1L,
+                    "username", loginDto.getUsername(),
+                    "email", email,
+                    "role", role
+            ));
+
+            return ResponseEntity.ok(responseBody);
         } catch (BadCredentialsException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(Map.of("error", "Unauthorized", "message", "Invalid username or password"));

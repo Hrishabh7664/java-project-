@@ -42,15 +42,17 @@ api.interceptors.response.use(
 // ---------------- Authentication APIs (Exp 6) ----------------
 export const login = async (username, password) => {
   const response = await api.post('/auth/login', { username, password });
-  if (response.data && response.data.accessToken) {
-    localStorage.setItem('token', response.data.accessToken);
-    localStorage.setItem('user', JSON.stringify({
-      username: response.data.username,
-      email: response.data.email,
-      role: response.data.role
-    }));
+  const token = response.data?.token || response.data?.accessToken;
+  const user = response.data?.user || {
+    username: response.data?.username || username,
+    email: response.data?.email || '',
+    role: response.data?.role || 'ROLE_USER'
+  };
+  if (token) {
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
   }
-  return response.data;
+  return { token, user, ...response.data };
 };
 
 export const register = async (userData) => {

@@ -71,8 +71,9 @@ public class DataInitializer implements CommandLineRunner {
     private void seedUsers() {
         if (userRepository.count() == 0) {
             userRepository.saveAll(List.of(
-                    new User("student", "student@campusconnect.edu", passwordEncoder.encode("password123"), Role.ROLE_USER),
+                    new User("student", "student@campusconnect.edu", passwordEncoder.encode("student123"), Role.ROLE_USER),
                     new User("admin", "admin@campusconnect.edu", passwordEncoder.encode("admin123"), Role.ROLE_ADMIN),
+                    new User("faculty", "faculty@campusconnect.edu", passwordEncoder.encode("faculty123"), Role.ROLE_FACULTY),
                     new User("hrishabh", "hrishabh@campusconnect.edu", passwordEncoder.encode("password123"), Role.ROLE_USER)
             ));
         }

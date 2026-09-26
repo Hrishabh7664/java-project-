@@ -1,32 +1,25 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { login as apiLogin, logout as apiLogout, getCurrentUser, getToken } from '../services/apiService';
+import * as apiService from '../services/apiService';
 
-export const AuthContext = createContext(null);
+const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(getCurrentUser());
-  const [token, setToken] = useState(getToken());
+  const [user, setUser] = useState(apiService.getCurrentUser());
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const savedUser = getCurrentUser();
-    const savedToken = getToken();
-    if (savedToken && savedUser) {
+    const savedUser = apiService.getCurrentUser();
+    if (savedUser) {
       setUser(savedUser);
-      setToken(savedToken);
     }
   }, []);
 
   const login = async (username, password) => {
     setLoading(true);
     try {
-      const data = await apiLogin(username, password);
-      setToken(data.accessToken);
-      setUser({
-        username: data.username,
-        email: data.email,
-        role: data.role
-      });
+      const data = await apiService.login(username, password);
+      const currentUser = apiService.getCurrentUser() || data?.user || { username };
+      setUser(currentUser);
       return data;
     } finally {
       setLoading(false);
@@ -34,18 +27,16 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
-    apiLogout();
+    apiService.logout();
     setUser(null);
-    setToken(null);
   };
 
   const value = {
     user,
-    token,
     loading,
-    isAuthenticated: !!token,
     login,
-    logout
+    logout,
+    isAuthenticated: !!user
   };
 
   return (
