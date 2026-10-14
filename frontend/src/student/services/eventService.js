@@ -11,5 +11,24 @@ export const eventService = {
   async getEventById(id) {
     const response = await api.get(`/events/${id}`);
     return mapEvent(response.data);
+  },
+
+  async register(id) {
+    const response = await api.post(`/events/${id}/registrations`);
+    return response.data;
+  },
+
+  async cancelRegistration(id) {
+    await api.delete(`/events/${id}/registrations/me`);
+  },
+
+  async getMyRegistrations() {
+    const response = await api.get('/events/registrations/me');
+    return response.data;
+  },
+
+  async getRegistrationCount(id) {
+    const response = await api.get(`/events/${id}/registrations/count`);
+    return response.data;
   }
 };

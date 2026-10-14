@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.net.URI;
 import java.util.List;
+import com.dto.EventRegistrationResponse;
+import org.springframework.security.core.Authentication;
 
 @RestController
 @RequestMapping("/api/events")
@@ -31,6 +33,25 @@ public class EventController {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok(event);
+    }
+
+    @GetMapping("/{id}/registrations/count")
+    public long registrationCount(@PathVariable Long id) { return eventService.registrationCount(id); }
+
+    @PostMapping("/{id}/registrations")
+    public ResponseEntity<EventRegistrationResponse> register(@PathVariable Long id, Authentication authentication) {
+        return ResponseEntity.status(201).body(eventService.register(id, authentication));
+    }
+
+    @DeleteMapping("/{id}/registrations/me")
+    public ResponseEntity<Void> cancel(@PathVariable Long id, Authentication authentication) {
+        eventService.cancel(id, authentication);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/registrations/me")
+    public List<EventRegistrationResponse> myRegistrations(Authentication authentication) {
+        return eventService.myRegistrations(authentication);
     }
 
     @PostMapping

@@ -2,6 +2,7 @@ package com.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "events")
@@ -22,6 +23,9 @@ public class Event {
     private String time;
     private String location;
     private String category;
+    private Integer capacity;
+    private String registrationDeadline;
+    private String eligibility;
 
     public Event() {
     }
@@ -35,6 +39,13 @@ public class Event {
         this.location = location;
         this.category = category;
     }
+
+    public Integer getCapacity() { return capacity; }
+    public void setCapacity(Integer capacity) { this.capacity = capacity; }
+    public String getRegistrationDeadline() { return registrationDeadline; }
+    public void setRegistrationDeadline(String registrationDeadline) { this.registrationDeadline = registrationDeadline; }
+    public String getEligibility() { return eligibility; }
+    public void setEligibility(String eligibility) { this.eligibility = eligibility; }
 
     public Long getId() {
         return id;

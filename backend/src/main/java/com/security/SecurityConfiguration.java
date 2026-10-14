@@ -54,6 +54,8 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/notices/**").hasAnyRole("FACULTY", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasAnyRole("FACULTY", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/notices/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/events/*/registrations").hasRole("STUDENT")
+                        .requestMatchers(HttpMethod.DELETE, "/api/events/*/registrations/me").hasRole("STUDENT")
                         .requestMatchers(HttpMethod.POST, "/api/events/**").hasAnyRole("FACULTY", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/events/**").hasAnyRole("FACULTY", "ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/events/**").hasAnyRole("FACULTY", "ADMIN")

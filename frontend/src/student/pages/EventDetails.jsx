@@ -2,20 +2,50 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { eventService } from '../services/eventService';
 import { ArrowLeft, Calendar, MapPin, Clock } from 'lucide-react';
+import { apiErrorMessage } from '../../services/api';
 
 export const EventDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [event, setEvent] = useState(null);
+  const [registered, setRegistered] = useState(false);
+  const [count, setCount] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     async function load() {
-      const ev = await eventService.getEventById(id);
-      setEvent(ev);
+      try {
+        const [ev, mine, registrations] = await Promise.all([
+          eventService.getEventById(id), eventService.getMyRegistrations(), eventService.getRegistrationCount(id)
+        ]);
+        setEvent(ev);
+        setRegistered(mine.some((registration) => registration.event.id === Number(id)));
+        setCount(registrations);
+      } catch (requestError) {
+        setError(apiErrorMessage(requestError, 'Event details could not be loaded.'));
+      }
     }
     load();
   }, [id]);
 
+  const toggleRegistration = async () => {
+    setBusy(true); setError(''); setMessage('');
+    try {
+      if (registered) {
+        await eventService.cancelRegistration(id);
+        setRegistered(false); setCount((value) => Math.max(0, value - 1)); setMessage('Your registration was cancelled.');
+      } else {
+        await eventService.register(id);
+        setRegistered(true); setCount((value) => value + 1); setMessage('You are registered for this event.');
+      }
+    } catch (requestError) {
+      setError(apiErrorMessage(requestError, 'Registration could not be updated.'));
+    } finally { setBusy(false); }
+  };
+
+  if (error && !event) return <div className="student-card" role="alert">{error}</div>;
   if (!event) return <div>Loading event details...</div>;
 
   return (
@@ -36,6 +66,13 @@ export const EventDetails = () => {
         </div>
 
         <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6' }}>{event.description}</p>
+        <p>{event.eligibility ? `Eligibility: ${event.eligibility}` : 'Open to eligible campus participants'} · {count} registered{event.capacity != null ? ` / ${event.capacity} seats` : ''}</p>
+        {event.registrationDeadline && <p>Register by {event.registrationDeadline}</p>}
+        {error && <p role="alert" style={{ color: 'var(--danger, #b42318)' }}>{error}</p>}
+        {message && <p role="status">{message}</p>}
+        <button className={registered ? 'btn btn-outline' : 'btn btn-primary'} onClick={toggleRegistration} disabled={busy || (!registered && event.capacity != null && count >= event.capacity)}>
+          {busy ? 'Saving…' : registered ? 'Cancel registration' : count >= event.capacity && event.capacity != null ? 'Event full' : 'Register for event'}
+        </button>
       </div>
     </div>
   );

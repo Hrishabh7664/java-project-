@@ -149,4 +149,35 @@ class AuthSecurityIntegrationTest {
         mvc.perform(get("/api/posts/" + id).header("Authorization", "Bearer " + token))
                 .andExpect(status().isNotFound());
     }
+
+    @Test
+    void eventRegistrationIsPersistedUniqueAndCancellable() throws Exception {
+        String facultyResponse = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"integration.faculty@tsdcem.ac.in\",\"password\":\"IntegrationDemo123\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String facultyToken = objectMapper.readTree(facultyResponse).path("token").asText();
+        String eventJson = mvc.perform(post("/api/events").header("Authorization", "Bearer " + facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Registration API test\",\"date\":\"2099-10-01\",\"registrationDeadline\":\"2099-09-30\",\"capacity\":2,\"eligibility\":\"All\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long eventId = objectMapper.readTree(eventJson).path("id").asLong();
+
+        String email = "event." + UUID.randomUUID() + "@tsdcem.ac.in";
+        String authJson = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Event Student\",\"email\":\"" + email + "\",\"password\":\"CampusDemo123\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String token = objectMapper.readTree(authJson).path("token").asText();
+        mvc.perform(post("/api/events/" + eventId + "/registrations").header("Authorization", "Bearer " + token))
+                .andExpect(status().isCreated());
+        mvc.perform(post("/api/events/" + eventId + "/registrations").header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest());
+        String registrations = mvc.perform(get("/api/events/registrations/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertEquals(1, objectMapper.readTree(registrations).size());
+        mvc.perform(delete("/api/events/" + eventId + "/registrations/me").header("Authorization", "Bearer " + token))
+                .andExpect(status().isNoContent());
+        assertEquals(0, objectMapper.readTree(mvc.perform(get("/api/events/registrations/me")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).size());
+    }
 }
