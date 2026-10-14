@@ -1,37 +1,12 @@
 import api from '../../services/api';
-
-const mapAssignment = (item) => ({
-  ...item,
-  deadline: item.dueDate,
-  instructions: item.description,
-  targetClass: 'Campus students',
-  status: item.status || 'PENDING',
-  totalMarks: item.totalMarks || 20,
-  submissionsCount: 0
-});
-
+const map = (a) => ({ ...a, subject: a.subjectCode ? `${a.subjectCode} · ${a.subjectName}` : a.subject,
+  deadline: a.deadlineAt || a.dueDate, instructions: a.description, totalMarks: a.maximumMarks,
+  targetClass: [a.departmentCode, a.academicYear, a.division && `Div ${a.division}`, a.batch && `Batch ${a.batch}`].filter(Boolean).join(' '), submissionsCount: a.submissionCount ?? 0 });
 export const assignmentService = {
-  async getAssignments() {
-    const response = await api.get('/assignments');
-    return response.data.map(mapAssignment);
-  },
-  async getAssignmentById(id) {
-    const response = await api.get(`/assignments/${id}`);
-    return mapAssignment(response.data);
-  },
-  async createAssignment(data) {
-    const response = await api.post('/assignments', {
-      title: data.title,
-      subject: data.subject,
-      dueDate: data.deadline,
-      description: data.instructions,
-      status: 'PENDING'
-    });
-    return mapAssignment(response.data);
-  },
-  async updateAssignment(id, data) {
-    const response = await api.put(`/assignments/${id}`, data);
-    return mapAssignment(response.data);
-  },
+  async getTeachingOptions() { return (await api.get('/faculty/attendance/options')).data; },
+  async getAssignments() { return (await api.get('/assignments')).data.map(map); },
+  async getAssignmentById(id) { return map((await api.get(`/assignments/${id}`)).data); },
+  async createAssignment(data) { return map((await api.post('/assignments', data)).data); },
+  async updateAssignment(id,data) { return map((await api.put(`/assignments/${id}`,data)).data); },
   async deleteAssignment(id) { await api.delete(`/assignments/${id}`); }
 };

@@ -3,15 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { assignmentService } from '../services/assignmentService';
 import { AssignmentCardFaculty } from '../components/AssignmentCard';
 import { PlusCircle } from 'lucide-react';
+import { apiErrorMessage } from '../../services/api';
 
 export const Assignments = () => {
   const [assignments, setAssignments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
     async function load() {
-      const asgns = await assignmentService.getAssignments();
-      setAssignments(asgns);
+      try { const asgns = await assignmentService.getAssignments(); setAssignments(asgns); }
+      catch (e) { setError(apiErrorMessage(e, 'Assignments could not be loaded.')); }
+      finally { setLoading(false); }
     }
     load();
   }, []);
@@ -29,9 +33,10 @@ export const Assignments = () => {
         </button>
       </div>
 
-      <div className="grid-2">
+      {error && <div className="student-card" role="alert">{error}</div>}
+      {loading ? <div className="student-card" role="status">Loading assignments…</div> : !error && !assignments.length ? <div className="student-card">No assignments have been created yet.</div> : <div className="grid-2">
         {assignments.map(a => <AssignmentCardFaculty key={a.id} assignment={a} />)}
-      </div>
+      </div>}
     </div>
   );
 };

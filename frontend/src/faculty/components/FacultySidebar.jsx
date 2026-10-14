@@ -5,13 +5,15 @@ import {
   FileCheck,
   Bell,
   User,
-  PlusCircle
+  PlusCircle,
+  CalendarDays
 } from 'lucide-react';
 
 export const FacultySidebar = ({ mobileOpen, onCloseMobile }) => {
   const navItems = [
     { to: "/faculty", label: "Faculty Dashboard", icon: LayoutDashboard, end: true },
     { to: "/faculty/assignments", label: "Assignments", icon: FileCheck },
+    { to: "/faculty/timetable", label: "Timetable & syllabus", icon: CalendarDays },
     { to: "/faculty/announcements", label: "Class Announcements", icon: Bell },
     { to: "/faculty/profile", label: "Faculty Profile", icon: User }
   ];

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, UserCheck } from 'lucide-react';
 import { attendanceService } from '../services/attendanceService';
 import { apiErrorMessage } from '../../services/api';
+import { useSearchParams } from 'react-router-dom';
 
 const nextMonday = () => {
   const date = new Date();
@@ -13,9 +14,10 @@ const nextMonday = () => {
 
 export const TakeAttendance = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [options, setOptions] = useState([]);
   const [assignmentId, setAssignmentId] = useState('');
-  const [date, setDate] = useState(nextMonday);
+  const [date, setDate] = useState(() => searchParams.get('date') || nextMonday());
   const [roster, setRoster] = useState(null);
   const [marks, setMarks] = useState({});
   const [loadingOptions, setLoadingOptions] = useState(true);
@@ -27,7 +29,7 @@ export const TakeAttendance = () => {
   useEffect(() => {
     attendanceService.getOptions().then((data) => {
       setOptions(data);
-      if (data.length) setAssignmentId(String(data[0].id));
+      if (data.length) setAssignmentId(searchParams.get('assignmentId') || String(data[0].id));
     }).catch((err) => setError(apiErrorMessage(err, 'Assigned classes could not be loaded.')))
       .finally(() => setLoadingOptions(false));
   }, []);

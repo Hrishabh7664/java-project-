@@ -1,30 +1,9 @@
 import api from '../../services/api';
-import { mockSubmissionsFaculty } from '../mock/mockSubmissions';
-
-let submissionsStore = [...mockSubmissionsFaculty];
-
 export const submissionService = {
-  async getSubmissions() {
-    return Promise.resolve(submissionsStore);
-  },
-
-  async getSubmissionById(id) {
-    const sub = submissionsStore.find(s => s.id === id);
-    return Promise.resolve(sub || null);
-  },
-
-  async gradeSubmission(id, marks, feedback) {
-    submissionsStore = submissionsStore.map(s => {
-      if (s.id === id) {
-        return {
-          ...s,
-          status: "Graded",
-          marks: Number(marks),
-          feedback: feedback
-        };
-      }
-      return s;
-    });
-    return Promise.resolve(submissionsStore.find(s => s.id === id));
+  async getSubmissions(assignmentId) { return (await api.get('/faculty/submissions', { params: assignmentId ? { assignmentId } : {} })).data; },
+  async review(id, action, marks, feedback) { return (await api.post(`/faculty/submissions/${id}/review`, { action, marks: marks === '' ? null : Number(marks), feedback })).data; },
+  async getPdf(id, version) {
+    const response = await api.get(`/submissions/${id}/versions/${version}/file`, { responseType: 'blob' });
+    return URL.createObjectURL(response.data);
   }
 };

@@ -2,6 +2,10 @@ package com.entity;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Size;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "assignments")
@@ -21,6 +25,33 @@ public class Assignment {
     private String facultyName;
     private String dueDate;
     private String status;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "subject_id")
+    private Subject academicSubject;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_class_id")
+    private AcademicClass targetAcademicClass;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "faculty_email")
+    private FacultyProfile faculty;
+
+    @Column(name = "deadline_at")
+    private LocalDateTime deadlineAt;
+
+    @Column(name = "maximum_marks", precision = 8, scale = 2)
+    private BigDecimal maximumMarks;
+
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
+
+    @Column(name = "allow_resubmission", nullable = false)
+    private boolean allowResubmission = true;
+
+    @Column(name = "allow_late_submission", nullable = false)
+    private boolean allowLateSubmission;
 
     public Assignment() {
     }
@@ -89,4 +120,21 @@ public class Assignment {
     public void setStatus(String status) {
         this.status = status;
     }
+
+    public Subject getAcademicSubject() { return academicSubject; }
+    public void setAcademicSubject(Subject academicSubject) { this.academicSubject = academicSubject; }
+    public AcademicClass getTargetAcademicClass() { return targetAcademicClass; }
+    public void setTargetAcademicClass(AcademicClass targetAcademicClass) { this.targetAcademicClass = targetAcademicClass; }
+    public FacultyProfile getFaculty() { return faculty; }
+    public void setFaculty(FacultyProfile faculty) { this.faculty = faculty; }
+    public LocalDateTime getDeadlineAt() { return deadlineAt; }
+    public void setDeadlineAt(LocalDateTime deadlineAt) { this.deadlineAt = deadlineAt; }
+    public BigDecimal getMaximumMarks() { return maximumMarks; }
+    public void setMaximumMarks(BigDecimal maximumMarks) { this.maximumMarks = maximumMarks; }
+    public LocalDateTime getPublishedAt() { return publishedAt; }
+    public void setPublishedAt(LocalDateTime publishedAt) { this.publishedAt = publishedAt; }
+    public boolean isAllowResubmission() { return allowResubmission; }
+    public void setAllowResubmission(boolean allowResubmission) { this.allowResubmission = allowResubmission; }
+    public boolean isAllowLateSubmission() { return allowLateSubmission; }
+    public void setAllowLateSubmission(boolean allowLateSubmission) { this.allowLateSubmission = allowLateSubmission; }
 }

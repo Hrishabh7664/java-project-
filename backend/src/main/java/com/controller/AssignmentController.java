@@ -1,65 +1,33 @@
 package com.controller;
 
-import com.entity.Assignment;
+import com.dto.AssignmentRequest;
+import com.dto.AssignmentResponse;
 import com.service.AssignmentService;
-import com.repository.StudentRepository;
-import org.springframework.security.core.Authentication;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
 import java.net.URI;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/assignments")
 public class AssignmentController {
-
     private final AssignmentService assignmentService;
-    private final StudentRepository studentRepository;
-
-    public AssignmentController(AssignmentService assignmentService, StudentRepository studentRepository) {
-        this.assignmentService = assignmentService;
-        this.studentRepository = studentRepository;
+    public AssignmentController(AssignmentService assignmentService) { this.assignmentService=assignmentService; }
+    @GetMapping public List<AssignmentResponse> getAll(Authentication auth) { return assignmentService.getAll(auth); }
+    @GetMapping("/{id}") public ResponseEntity<AssignmentResponse> getById(@PathVariable Long id,Authentication auth) {
+        return ResponseEntity.ok(assignmentService.get(id,auth));
     }
-
-    @GetMapping
-    public List<Assignment> getAllAssignments() {
-        return assignmentService.getAllAssignments();
+    @PostMapping public ResponseEntity<AssignmentResponse> create(@Valid @RequestBody AssignmentRequest request,Authentication auth) {
+        AssignmentResponse created=assignmentService.create(request,auth);
+        return ResponseEntity.created(URI.create("/api/assignments/"+created.id())).body(created);
     }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<Assignment> getAssignmentById(@PathVariable Long id) {
-        Assignment assignment = assignmentService.getAssignmentById(id);
-        if (assignment == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(assignment);
+    @PutMapping("/{id}") public ResponseEntity<AssignmentResponse> update(@PathVariable Long id,
+        @Valid @RequestBody AssignmentRequest request,Authentication auth) {
+        return ResponseEntity.ok(assignmentService.update(id,request,auth));
     }
-
-    @PostMapping
-    public ResponseEntity<Assignment> createAssignment(@Valid @RequestBody Assignment assignment, Authentication authentication) {
-        assignment.setFacultyName(studentRepository.findByEmailIgnoreCase(authentication.getName())
-                .map(student -> student.getName()).orElse(authentication.getName()));
-        Assignment created = assignmentService.createAssignment(assignment);
-        return ResponseEntity
-                .created(URI.create("/api/assignments/" + created.getId()))
-                .body(created);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<Assignment> updateAssignment(@PathVariable Long id, @Valid @RequestBody Assignment assignment) {
-        Assignment updated = assignmentService.updateAssignment(id, assignment);
-        if (updated == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(updated);
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteAssignment(@PathVariable Long id) {
-        return assignmentService.deleteAssignment(id)
-                ? ResponseEntity.noContent().build()
-                : ResponseEntity.notFound().build();
+    @DeleteMapping("/{id}") public ResponseEntity<Void> delete(@PathVariable Long id,Authentication auth) {
+        assignmentService.delete(id,auth); return ResponseEntity.noContent().build();
     }
 }

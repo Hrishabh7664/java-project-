@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 import com.entity.*;
 import com.repository.*;
@@ -23,6 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
@@ -44,6 +46,9 @@ class AuthSecurityIntegrationTest {
     @Autowired AttendanceChangeRepository attendanceChangeRepository;
     @Autowired AttendanceSessionRepository attendanceSessionRepository;
     @Autowired StudentEnrollmentRepository studentEnrollmentRepository;
+    @Autowired FacultyProfileRepository facultyProfileRepository;
+    @Autowired com.repository.AssignmentRepository assignments;
+    @Autowired com.service.AssignmentFileStorage assignmentFileStorage;
     @Autowired TeachingAssignmentRepository assignmentRepository;
 
     @Test
@@ -106,9 +111,14 @@ class AuthSecurityIntegrationTest {
                         .content("{\"email\":\"integration.faculty@tsdcem.ac.in\",\"password\":\"IntegrationDemo123\"}"))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         String facultyToken = objectMapper.readTree(facultyResponse).path("token").asText();
+        JsonNode facultyClass = objectMapper.readTree(mvc.perform(get("/api/faculty/attendance/options")
+                        .header("Authorization", "Bearer " + facultyToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).get(0);
         mvc.perform(post("/api/assignments").header("Authorization", "Bearer " + facultyToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\":\"Faculty API test\",\"status\":\"PENDING\"}"))
+                        .content("{\"title\":\"Faculty API test\",\"description\":\"Integration test assignment\",\"subjectId\":"
+                                + facultyClass.path("subjectId").asLong() + ",\"classId\":" + facultyClass.path("classId").asLong()
+                                + ",\"deadlineAt\":\"2099-09-30T23:59:00\",\"maximumMarks\":20,\"status\":\"PUBLISHED\"}"))
                 .andExpect(status().isCreated());
 
         String adminResponse = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
@@ -117,6 +127,93 @@ class AuthSecurityIntegrationTest {
         String adminToken = objectMapper.readTree(adminResponse).path("token").asText();
         mvc.perform(get("/api/students").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void assignmentSubmissionReviewAndResubmissionWorkflowIsProtectedAndPersistent() throws Exception {
+        String facultyLogin = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"integration.faculty@tsdcem.ac.in\",\"password\":\"IntegrationDemo123\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String facultyToken = objectMapper.readTree(facultyLogin).path("token").asText();
+        JsonNode option = objectMapper.readTree(mvc.perform(get("/api/faculty/attendance/options")
+                        .header("Authorization", "Bearer " + facultyToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).get(0);
+        String createBody = "{\"title\":\"Workflow assignment\",\"description\":\"Upload a PDF\",\"subjectId\":"
+                + option.path("subjectId").asLong() + ",\"classId\":" + option.path("classId").asLong()
+                + ",\"deadlineAt\":\"2099-09-30T23:59:00\",\"maximumMarks\":20,\"status\":\"PUBLISHED\",\"allowResubmission\":true}";
+        mvc.perform(post("/api/assignments").header("Authorization", "Bearer " + facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(createBody.replace("2099-09-30T23:59:00", "2000-09-30T23:59:00")))
+                .andExpect(status().isBadRequest());
+        assertThrows(IllegalArgumentException.class, () -> assignmentFileStorage.validate(new MockMultipartFile("file", "large.pdf",
+                "application/pdf", new byte[10 * 1024 * 1024 + 1])));
+        long assignmentId = objectMapper.readTree(mvc.perform(post("/api/assignments").header("Authorization", "Bearer " + facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(createBody))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).path("id").asLong();
+        String otherFaculty = "other.faculty." + UUID.randomUUID() + "@tsdcem.ac.in";
+        Student otherFacultyAccount = new Student("Other Faculty", otherFaculty, "IT", "FE", "A", "Test faculty");
+        otherFacultyAccount.setRole("FACULTY");
+        otherFacultyAccount.setPasswordHash(new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder().encode("CampusDemo123"));
+        studentRepository.save(otherFacultyAccount);
+        facultyProfileRepository.save(new FacultyProfile(otherFaculty, "Other Faculty", departmentRepository.findById("IT").orElseThrow()));
+        String otherToken = objectMapper.readTree(mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"" + otherFaculty + "\",\"password\":\"CampusDemo123\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).path("token").asText();
+        mvc.perform(put("/api/assignments/" + assignmentId).header("Authorization", "Bearer " + otherToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(createBody)).andExpect(status().isNotFound());
+
+        String email = "submit." + UUID.randomUUID() + "@tsdcem.ac.in";
+        String studentJson = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Submission Student\",\"email\":\"" + email + "\",\"password\":\"CampusDemo123\",\"department\":\"IT\",\"year\":\"FE\",\"division\":\"A\",\"batch\":\"A1\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String studentToken = objectMapper.readTree(studentJson).path("token").asText();
+        Student testStudent = studentRepository.findByEmailIgnoreCase(email).orElseThrow();
+        testStudent.setDepartment(option.path("departmentCode").asText());
+        testStudent.setYear(option.path("academicYear").asText());
+        testStudent.setDivision(option.path("division").asText()); testStudent.setBatch(option.path("batch").asText());
+        studentRepository.save(testStudent);
+        mvc.perform(get("/api/assignments/" + assignmentId).header("Authorization", "Bearer " + studentToken)).andExpect(status().isOk());
+        byte[] pdf = "%PDF-1.4\nCampus test PDF".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        mvc.perform(multipart("/api/student/assignments/" + assignmentId + "/submission")
+                        .file(new MockMultipartFile("file", "notes.pdf", "application/pdf", pdf))
+                        .header("Authorization", "Bearer " + studentToken)).andExpect(status().isCreated());
+        mvc.perform(multipart("/api/student/assignments/" + assignmentId + "/submission")
+                        .file(new MockMultipartFile("file", "notes.pdf", "application/pdf", pdf))
+                        .header("Authorization", "Bearer " + studentToken)).andExpect(status().isConflict());
+        mvc.perform(multipart("/api/student/assignments/" + assignmentId + "/submission")
+                        .file(new MockMultipartFile("file", "notes.txt", "text/plain", "not pdf".getBytes()))
+                        .header("Authorization", "Bearer " + studentToken)).andExpect(status().isBadRequest());
+        JsonNode submissions = objectMapper.readTree(mvc.perform(get("/api/faculty/assignments/" + assignmentId + "/submissions")
+                        .header("Authorization", "Bearer " + facultyToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        JsonNode sub = submissions.get(0); long submissionId = sub.path("id").asLong();
+        String anotherJson = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Private Attempt\",\"email\":\"private." + UUID.randomUUID() + "@tsdcem.ac.in\",\"password\":\"CampusDemo123\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String anotherToken = objectMapper.readTree(anotherJson).path("token").asText();
+        mvc.perform(get("/api/submissions/" + submissionId + "/versions/1/file").header("Authorization", "Bearer " + anotherToken)).andExpect(status().isForbidden());
+        mvc.perform(post("/api/faculty/submissions/" + submissionId + "/review").header("Authorization", "Bearer " + facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"action\":\"GRADE\",\"marks\":21,\"feedback\":\"Over max\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(get("/api/submissions/" + submissionId + "/versions/1/file").header("Authorization", "Bearer " + facultyToken))
+                .andExpect(status().isOk()).andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().contentType(MediaType.APPLICATION_PDF));
+        mvc.perform(post("/api/faculty/submissions/" + submissionId + "/review").header("Authorization", "Bearer " + facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"action\":\"REQUEST_RESUBMISSION\",\"feedback\":\"Please include the missing section.\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(multipart("/api/student/assignments/" + assignmentId + "/submission")
+                        .file(new MockMultipartFile("file", "revision.pdf", "application/pdf", pdf))
+                        .header("Authorization", "Bearer " + studentToken)).andExpect(status().isCreated());
+        mvc.perform(post("/api/faculty/submissions/" + submissionId + "/review").header("Authorization", "Bearer " + facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"action\":\"GRADE\",\"marks\":18,\"feedback\":\"Good revision.\"}"))
+                .andExpect(status().isOk());
+        JsonNode ownAssignment = objectMapper.readTree(mvc.perform(get("/api/assignments/" + assignmentId).header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals("GRADED", ownAssignment.path("submissionStatus").asText());
+        assertEquals(18, ownAssignment.path("marks").asInt());
+        JsonNode ownSubmission = objectMapper.readTree(mvc.perform(get("/api/student/assignments/" + assignmentId + "/submission").header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(2, ownSubmission.path("currentVersion").asInt());
+        assertEquals(2, ownSubmission.path("versions").size());
+        assertEquals("integration.faculty@tsdcem.ac.in", ownSubmission.path("reviewerEmail").asText());
     }
 
     @Test
@@ -212,6 +309,21 @@ class AuthSecurityIntegrationTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
         assertTrue(options.size() > 0);
         for (JsonNode option : options) assertEquals("IT", option.path("departmentCode").asText());
+        JsonNode facultyTimetable = objectMapper.readTree(mvc.perform(get("/api/faculty/timetable")
+                        .header("Authorization", "Bearer " + facultyToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertFalse(facultyTimetable.isEmpty());
+        assertTrue(facultyTimetable.get(0).path("classroom").asText().contains("Demo"));
+        long syllabusSubjectId = options.get(0).path("subjectId").asLong();
+        mvc.perform(put("/api/faculty/subjects/" + syllabusSubjectId + "/syllabus")
+                        .header("Authorization", "Bearer " + facultyToken).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"syllabus\":\"Integration syllabus\"}"))
+                .andExpect(status().isOk());
+        long scheduledAssignmentId = options.get(1).path("id").asLong();
+        mvc.perform(put("/api/faculty/timetable/" + scheduledAssignmentId)
+                        .header("Authorization", "Bearer " + facultyToken).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"dayOfWeek\":\"TUESDAY\",\"startTime\":\"13:00\",\"endTime\":\"14:00\",\"classroom\":\"IT Lab 2\"}"))
+                .andExpect(status().isOk());
 
         long unauthorizedAssignmentId = teachingAssignmentRepository.findAll().stream()
                 .filter(a -> a.getAcademicClass().getDepartment().getCode().equals("CE"))
@@ -233,6 +345,14 @@ class AuthSecurityIntegrationTest {
         studentRepository.save(testStudent);
         assertTrue(studentEnrollmentRepository.existsByStudentIdAndAcademicClassId(
                 testStudent.getId(), assignmentRepository.findById(assignmentId).orElseThrow().getAcademicClass().getId()));
+        JsonNode studentTimetable = objectMapper.readTree(mvc.perform(get("/api/student/timetable")
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertFalse(studentTimetable.isEmpty());
+        assertTrue(java.util.stream.StreamSupport.stream(studentTimetable.spliterator(), false)
+                .anyMatch(row -> row.path("syllabus").asText().equals("Integration syllabus")));
+        assertTrue(java.util.stream.StreamSupport.stream(studentTimetable.spliterator(), false)
+                .anyMatch(row -> row.path("assignmentId").asLong() == scheduledAssignmentId && row.path("dayOfWeek").asText().equals("TUESDAY")));
 
         mvc.perform(get("/api/faculty/attendance/roster").param("assignmentId", String.valueOf(assignmentId))
                         .param("date", lectureDate.toString()).header("Authorization", "Bearer " + facultyToken))

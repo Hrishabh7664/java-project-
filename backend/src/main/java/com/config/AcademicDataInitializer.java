@@ -58,6 +58,13 @@ public class AcademicDataInitializer implements CommandLineRunner {
                 if (!assignments.existsBySubjectIdAndAcademicClassIdAndLectureNumber(subject.getId(), cls.getId(), partNumber))
                     assignments.save(new TeachingAssignment(subject, cls, profile, partNumber, "MONDAY",
                             partNumber == 1 ? "09:00" : "10:00", partNumber == 1 ? "10:00" : "11:00"));
+                TeachingAssignment scheduled = assignments.findFirstBySubjectIdAndAcademicClassId(subject.getId(), cls.getId()).orElseThrow();
+                if ("Room to be configured".equals(scheduled.getClassroom()))
+                    scheduled.setClassroom(partNumber == 1 ? code + "-101 (Demo)" : code + " Lab A1 (Demo)");
+                if (subject.getSyllabus() == null || subject.getSyllabus().isBlank())
+                    subject.setSyllabus(demoSyllabus(code, year, subject.getName()));
+                assignments.save(scheduled);
+                subjects.save(subject);
             }
         }
     }
@@ -92,5 +99,9 @@ public class AcademicDataInitializer implements CommandLineRunner {
         };
         int row = List.of("IT", "CE", "ECS", "ME").indexOf(dept);
         return names[row][(year.equals("FE") ? 0 : 2) + part - 1];
+    }
+    private String demoSyllabus(String department, String year, String subject) {
+        return "DEMO SYLLABUS — " + department + " " + year + ": " + subject
+                + "\n\nUnits and teaching plan are illustrative. Faculty should replace this with the approved course outline before use.";
     }
 }

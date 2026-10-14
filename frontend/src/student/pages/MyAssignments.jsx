@@ -1,14 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { assignmentService } from '../services/assignmentService';
 import { AssignmentCard } from '../components/AssignmentCard';
+import { apiErrorMessage } from '../../services/api';
 
 export const MyAssignments = () => {
   const [assignments, setAssignments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     async function load() {
-      const asgns = await assignmentService.getAssignments();
-      setAssignments(asgns);
+      try { const asgns = await assignmentService.getAssignments(); setAssignments(asgns); }
+      catch (e) { setError(apiErrorMessage(e, 'Assignments could not be loaded.')); }
+      finally { setLoading(false); }
     }
     load();
   }, []);
@@ -22,9 +26,10 @@ export const MyAssignments = () => {
         </div>
       </div>
 
-      <div className="grid-2">
+      {error && <div className="student-card" role="alert">{error}</div>}
+      {loading ? <div className="student-card" role="status">Loading assignments…</div> : !error && !assignments.length ? <div className="student-card">No published assignments are available for your enrolled classes.</div> : <div className="grid-2">
         {assignments.map(a => <AssignmentCard key={a.id} assignment={a} />)}
-      </div>
+      </div>}
     </div>
   );
 };

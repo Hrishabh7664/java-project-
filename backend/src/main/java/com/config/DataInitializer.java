@@ -18,7 +18,6 @@ public class DataInitializer implements CommandLineRunner {
     private final CommentRepository commentRepository;
     private final EventRepository eventRepository;
     private final NoticeRepository noticeRepository;
-    private final AssignmentRepository assignmentRepository;
     private final ElectionRepository electionRepository;
     private final ComplaintRepository complaintRepository;
     private final PasswordEncoder passwordEncoder;
@@ -30,7 +29,6 @@ public class DataInitializer implements CommandLineRunner {
                            CommentRepository commentRepository,
                            EventRepository eventRepository,
                            NoticeRepository noticeRepository,
-                           AssignmentRepository assignmentRepository,
                            ElectionRepository electionRepository,
                            ComplaintRepository complaintRepository,
                            PasswordEncoder passwordEncoder,
@@ -41,7 +39,6 @@ public class DataInitializer implements CommandLineRunner {
         this.commentRepository = commentRepository;
         this.eventRepository = eventRepository;
         this.noticeRepository = noticeRepository;
-        this.assignmentRepository = assignmentRepository;
         this.electionRepository = electionRepository;
         this.complaintRepository = complaintRepository;
         this.passwordEncoder = passwordEncoder;
@@ -55,7 +52,6 @@ public class DataInitializer implements CommandLineRunner {
         seedPosts();
         seedEvents();
         seedNotices();
-        seedAssignments();
         seedElections();
         seedComplaints();
         provisionRoleAccount("ADMIN");
@@ -122,14 +118,6 @@ public class DataInitializer implements CommandLineRunner {
             noticeRepository.saveAll(List.of(
                     new Notice("Experiment 05 Submission Deadline", "All students must submit Experiment 05 by Friday.", "Prof. Sumeet Rathod", "2026-09-20", "Academics"),
                     new Notice("Library Extended Hours for Mid-Sem Exams", "Library will remain open till 10 PM during exam week.", "Central Library", "2026-09-18", "General")
-            ));
-        }
-    }
-
-    private void seedAssignments() {
-        if (assignmentRepository.count() == 0) {
-            assignmentRepository.saveAll(List.of(
-                    new Assignment("Experiment 05 - Spring Boot & MySQL Integration", "Perform CRUD operations with Spring Data JPA and MySQL database integration.", "Full Stack Java", "Prof. Sumeet Rathod", "2026-09-25", "PENDING")
             ));
         }
     }

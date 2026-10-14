@@ -35,6 +35,7 @@ import { ElectionDetails } from './student/pages/ElectionDetails';
 import { MyAssignments } from './student/pages/MyAssignments';
 import { AssignmentDetails } from './student/pages/AssignmentDetails';
 import { Attendance } from './student/pages/Attendance';
+import { StudentTimetable } from './student/pages/Timetable';
 import { Teams } from './student/pages/Teams';
 import { TeamDetails } from './student/pages/TeamDetails';
 import { Complaints } from './student/pages/Complaints';
@@ -75,6 +76,7 @@ import { CreateTeamFaculty } from './faculty/pages/CreateTeam';
 import { TeamDetailsFaculty } from './faculty/pages/TeamDetails';
 import { AnnouncementsFaculty } from './faculty/pages/Announcements';
 import { FacultyProfile } from './faculty/pages/FacultyProfile';
+import { FacultyTimetable } from './faculty/pages/Timetable';
 
 import './styles/global.css';
 
@@ -107,6 +109,7 @@ export default function App() {
             <Route path="assignments" element={<MyAssignments />} />
             <Route path="assignments/:id" element={<AssignmentDetails />} />
             <Route path="attendance" element={<Attendance />} />
+            <Route path="timetable" element={<StudentTimetable />} />
             <Route path="teams" element={<Teams />} />
             <Route path="teams/:id" element={<TeamDetails />} />
             <Route path="complaints" element={<Complaints />} />
@@ -137,6 +140,7 @@ export default function App() {
           <Route path="/faculty" element={<ProtectedRoute role="FACULTY"><FacultyLayout /></ProtectedRoute>}>
             <Route index element={<FacultyDashboard />} />
             <Route path="classes" element={<MyClasses />} />
+            <Route path="timetable" element={<FacultyTimetable />} />
             <Route path="classes/:id" element={<ClassDetails />} />
             <Route path="assignments" element={<Assignments />} />
             <Route path="assignments/create" element={<CreateAssignment />} />

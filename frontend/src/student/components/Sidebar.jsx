@@ -15,7 +15,8 @@ import {
   ShieldAlert,
   Briefcase,
   Activity,
-  User
+  User,
+  CalendarDays
 } from 'lucide-react';
 
 export const StudentSidebar = ({ mobileOpen, onCloseMobile }) => {
@@ -27,6 +28,7 @@ export const StudentSidebar = ({ mobileOpen, onCloseMobile }) => {
     { to: "/student/events", label: "Campus Events", icon: Calendar },
     { to: "/student/notices", label: "Official Notices", icon: Bell },
     { to: "/student/assignments", label: "My Assignments", icon: BookOpen },
+    { to: "/student/timetable", label: "My Timetable", icon: CalendarDays },
     { to: "/student/complaints", label: "Complaints Portal", icon: ShieldAlert },
     { to: "/student/profile", label: "Student Profile", icon: User }
   ];

@@ -13,6 +13,7 @@ public class TeachingAssignment {
     @Column(name = "day_of_week", nullable = false) private String dayOfWeek;
     @Column(name = "start_time", nullable = false) private String startTime;
     @Column(name = "end_time", nullable = false) private String endTime;
+    @Column(name = "classroom", nullable = false) private String classroom = "Room to be configured";
     protected TeachingAssignment() {}
     public TeachingAssignment(Subject subject, AcademicClass academicClass, FacultyProfile faculty, Integer lectureNumber,
                               String dayOfWeek, String startTime, String endTime) {
@@ -27,4 +28,9 @@ public class TeachingAssignment {
     public String getDayOfWeek() { return dayOfWeek; }
     public String getStartTime() { return startTime; }
     public String getEndTime() { return endTime; }
+    public String getClassroom() { return classroom; }
+    public void setClassroom(String classroom) { this.classroom = classroom; }
+    public void setDayOfWeek(String dayOfWeek) { this.dayOfWeek = dayOfWeek; }
+    public void setStartTime(String startTime) { this.startTime = startTime; }
+    public void setEndTime(String endTime) { this.endTime = endTime; }
 }

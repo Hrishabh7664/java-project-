@@ -51,7 +51,7 @@ public class AttendanceService {
         TeachingAssignment assignment = assigned(request.assignmentId(), facultyEmail);
         validateScheduledDate(assignment, request.date());
         if (sessions.findByAssignmentIdAndHeldOn(assignment.getId(), request.date()).isPresent())
-            throw new AttendanceConflictException("Attendance has already been recorded for this lecture and date.");
+            throw new ConflictException("Attendance has already been recorded for this lecture and date.");
         validateRoster(assignment, request.attendance());
         AttendanceSession session = sessions.save(new AttendanceSession(assignment, request.date(), facultyEmail));
         var saved = request.attendance().stream().map(mark ->

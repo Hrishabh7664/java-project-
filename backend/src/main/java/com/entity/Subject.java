@@ -11,6 +11,7 @@ public class Subject {
     @Column(nullable = false) private Integer semester;
     @Column(name = "subject_code", nullable = false) private String subjectCode;
     @Column(nullable = false) private String name;
+    @Column(columnDefinition = "TEXT") private String syllabus;
     protected Subject() {}
     public Subject(Department department, String academicYear, Integer semester, String subjectCode, String name) {
         this.department = department; this.academicYear = academicYear; this.semester = semester; this.subjectCode = subjectCode; this.name = name;
@@ -21,4 +22,6 @@ public class Subject {
     public Integer getSemester() { return semester; }
     public String getSubjectCode() { return subjectCode; }
     public String getName() { return name; }
+    public String getSyllabus() { return syllabus; }
+    public void setSyllabus(String syllabus) { this.syllabus = syllabus; }
 }
