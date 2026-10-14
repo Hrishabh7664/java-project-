@@ -53,6 +53,10 @@ class AuthSecurityIntegrationTest {
     @Autowired ClubRepository clubRepository;
     @Autowired ClubMembershipRepository clubMembershipRepository;
     @Autowired TeachingAssignmentRepository assignmentRepository;
+    @Autowired com.repository.PostRepository postRepository;
+    @Autowired com.repository.CommentRepository commentRepository;
+    @Autowired com.repository.PostVoteRepository postVoteRepository;
+    @Autowired com.repository.ContentReportRepository contentReportRepository;
 
     @Test
     void registrationLoginAndProtectedApiWork() throws Exception {
@@ -130,6 +134,86 @@ class AuthSecurityIntegrationTest {
         String adminToken = objectMapper.readTree(adminResponse).path("token").asText();
         mvc.perform(get("/api/students").header("Authorization", "Bearer " + adminToken))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void votingReportsAndModerationArePersistentAndRoleProtected() throws Exception {
+        String studentToken = registerToken("voter." + UUID.randomUUID() + "@tsdcem.ac.in", "Voter");
+        String secondStudentToken = registerToken("voter2." + UUID.randomUUID() + "@tsdcem.ac.in", "Second Voter");
+        String adminLogin = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"integration.admin@tsdcem.ac.in\",\"password\":\"IntegrationDemo123\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String adminToken = objectMapper.readTree(adminLogin).path("token").asText();
+        String postJson = mvc.perform(post("/api/posts").header("Authorization", "Bearer " + studentToken)
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"title\":\"Demo DSA interview prep\",\"content\":\"How do I approach graph problems?\",\"category\":\"Academics\",\"voteCount\":9999}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long postId = objectMapper.readTree(postJson).path("id").asLong();
+        assertEquals(0, objectMapper.readTree(mvc.perform(get("/api/posts/" + postId).header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).path("voteCount").asInt());
+        JsonNode vote = objectMapper.readTree(mvc.perform(post("/api/posts/" + postId + "/vote").param("direction", "1")
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(1, vote.path("score").asInt());assertEquals(1, vote.path("userVote").asInt());
+        vote=objectMapper.readTree(mvc.perform(post("/api/posts/" + postId + "/vote").param("direction", "-1")
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(-1,vote.path("score").asInt());assertEquals(1,postVoteRepository.count());
+        vote=objectMapper.readTree(mvc.perform(post("/api/posts/" + postId + "/vote").param("direction", "-1")
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(0,vote.path("score").asInt());assertEquals(0,vote.path("userVote").asInt());
+        vote=objectMapper.readTree(mvc.perform(post("/api/posts/" + postId + "/vote").param("direction", "1")
+                        .header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(1,vote.path("score").asInt());
+        assertEquals(1,objectMapper.readTree(mvc.perform(get("/api/posts/"+postId).header("Authorization","Bearer "+studentToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).path("voteCount").asInt());
+        mvc.perform(post("/api/posts/" + postId + "/vote").param("direction", "2").header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/posts/" + postId + "/vote").param("direction", "1").header("Authorization", "Bearer " + secondStudentToken)).andExpect(status().isOk());
+        assertEquals(2,postVoteRepository.count());
+        mvc.perform(post("/api/posts/" + postId + "/vote").param("direction", "1").header("Authorization", "Bearer " + secondStudentToken)).andExpect(status().isOk());
+        assertEquals(1,postVoteRepository.count());
+
+        String commentJson=mvc.perform(post("/api/comments").header("Authorization","Bearer "+studentToken).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"postId\":"+postId+",\"content\":\"A helpful answer\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long commentId=objectMapper.readTree(commentJson).path("id").asLong();
+        mvc.perform(put("/api/comments/"+commentId).header("Authorization","Bearer "+secondStudentToken).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"content\":\"Unauthorized edit\"}")).andExpect(status().isForbidden());
+        mvc.perform(put("/api/comments/"+commentId).header("Authorization","Bearer "+studentToken).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"content\":\"Edited by owner\"}")).andExpect(status().isOk());
+        mvc.perform(post("/api/content-reports").header("Authorization","Bearer "+secondStudentToken).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"contentType\":\"COMMENT\",\"contentId\":"+commentId+",\"reason\":\"Potentially harmful reply\"}"))
+                .andExpect(status().isCreated());
+        String reportJson=mvc.perform(post("/api/content-reports").header("Authorization","Bearer "+secondStudentToken).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"contentType\":\"POST\",\"contentId\":"+postId+",\"reason\":\"Contains inappropriate details\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long reportId=objectMapper.readTree(reportJson).path("id").asLong();
+        mvc.perform(post("/api/content-reports").header("Authorization","Bearer "+secondStudentToken).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"contentType\":\"POST\",\"contentId\":"+postId+",\"reason\":\"Another reason\"}"))
+                .andExpect(status().isConflict());
+        mvc.perform(get("/api/admin/moderation/reports").header("Authorization","Bearer "+studentToken)).andExpect(status().isForbidden());
+        mvc.perform(post("/api/admin/moderation/reports/"+reportId+"/resolve").header("Authorization","Bearer "+studentToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"action\":\"HIDE\",\"reason\":\"Policy violation\"}")).andExpect(status().isForbidden());
+        mvc.perform(post("/api/admin/moderation/reports/"+reportId+"/resolve").header("Authorization","Bearer "+adminToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"action\":\"HIDE\",\"reason\":\"Policy violation\"}")).andExpect(status().isOk());
+        mvc.perform(get("/api/posts/"+postId).header("Authorization","Bearer "+studentToken)).andExpect(status().isNotFound());
+        JsonNode publicPosts=objectMapper.readTree(mvc.perform(get("/api/posts").header("Authorization","Bearer "+studentToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertFalse(java.util.stream.StreamSupport.stream(publicPosts.spliterator(),false).anyMatch(p->p.path("id").asLong()==postId));
+        mvc.perform(post("/api/admin/moderation/reports/"+reportId+"/resolve").header("Authorization","Bearer "+adminToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"action\":\"RESTORE\",\"reason\":\"Reviewed and restored\"}")).andExpect(status().isOk());
+        assertNotNull(commentRepository.findById(commentId).orElse(null));
+        assertNotNull(contentReportRepository.findById(reportId).orElse(null));
+        mvc.perform(put("/api/posts/"+postId).header("Authorization","Bearer "+secondStudentToken).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"Changed by another user\",\"content\":\"No\"}")).andExpect(status().isForbidden());
+    }
+
+    private String registerToken(String email,String name) throws Exception {
+        String body="{\"name\":\""+name+"\",\"email\":\""+email+"\",\"password\":\"CampusDemo123\"}";
+        return objectMapper.readTree(mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).path("token").asText();
     }
 
     @Test

@@ -47,5 +47,8 @@ export const reportService = {
       anonymous: updateData.anonymous
     });
     return mapReport(response.data);
-  }
+  },
+  async getModerationReports(){return (await api.get('/admin/moderation/reports')).data;},
+  async resolveModerationReport(id,action,reason){return (await api.post(`/admin/moderation/reports/${id}/resolve`,{action,reason})).data;},
+  async getModerationContent(type,id){return (await api.get(`/admin/moderation/content/${type}/${id}`)).data;}
 };

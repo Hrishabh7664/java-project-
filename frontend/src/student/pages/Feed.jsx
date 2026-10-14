@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { postService } from '../services/postService';
 import { PostCard } from '../components/PostCard';
 import { CreatePostModal } from '../components/CreatePost';
-import { PlusCircle, RefreshCw } from 'lucide-react';
+import { PlusCircle, RefreshCw, Search } from 'lucide-react';
 import { apiErrorMessage } from '../../services/api';
 
 export const Feed = () => {
@@ -12,6 +12,8 @@ export const Feed = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState('recent');
   const requestSequence = useRef(0);
 
   const refresh = useCallback(async () => {
@@ -19,14 +21,14 @@ export const Feed = () => {
     setLoading(true);
     setError('');
     try {
-      const p = await postService.getPosts(selectedCat);
+      const p = await postService.getPosts(selectedCat, {search: query, sort});
       if (sequence === requestSequence.current) setPosts(p);
     } catch (requestError) {
       if (sequence === requestSequence.current) setError(apiErrorMessage(requestError, 'Posts could not be loaded.'));
     } finally {
       if (sequence === requestSequence.current) setLoading(false);
     }
-  }, [selectedCat]);
+  }, [selectedCat, query, sort]);
 
   useEffect(() => {
     postService.getCategories().then((items) => setCategories(['All', ...items])).catch((requestError) => {
@@ -43,6 +45,7 @@ export const Feed = () => {
     await postService.createPost(postData);
     await refresh();
   };
+  const visiblePosts = posts;
 
   return (
     <div>
@@ -70,11 +73,16 @@ export const Feed = () => {
         ))}
       </div>
 
+      <div className="feed-tools">
+        <label className="feed-search"><Search size={17}/><input aria-label="Search discussions" placeholder="Search posts, topics, or categories" value={query} onChange={e=>setQuery(e.target.value)}/></label>
+        <label className="feed-sort-label">Sort <select className="form-input" value={sort} onChange={e=>setSort(e.target.value)}><option value="recent">Most recent</option><option value="popular">Most popular</option></select></label>
+      </div>
+
       <div>
         {loading && <p role="status" className="student-card">Loading campus posts…</p>}
         {error && <div className="student-card" role="alert" style={{ color: 'var(--error)' }}>{error} <button className="btn btn-outline" onClick={refresh}><RefreshCw size={15} /> Retry</button></div>}
         {!loading && !error && posts.length === 0 && <div className="student-card">No posts in this category yet. Start a campus conversation.</div>}
-        {posts.map(post => (
+        {visiblePosts.map(post => (
           <PostCard key={post.id} post={post} onDelete={(id) => setPosts((items) => items.filter((item) => item.id !== id))} />
         ))}
       </div>

@@ -4,6 +4,7 @@ import { StudentNavbar } from '../components/Navbar';
 import { StudentSidebar } from '../components/Sidebar';
 import { StudentProvider } from '../context/StudentContext';
 import '../styles/student.css';
+import '../styles/feed.css';
 
 export const StudentLayout = () => {
   const [mobileSidebar, setMobileSidebar] = useState(false);

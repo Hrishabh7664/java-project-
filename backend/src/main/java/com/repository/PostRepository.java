@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long> {
+    java.util.List<Post> findByHiddenFalseOrderByCreatedAtDesc();
+    java.util.List<Post> findByHiddenFalseAndCategoryIgnoreCaseOrderByCreatedAtDesc(String category);
 }

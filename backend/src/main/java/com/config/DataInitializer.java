@@ -99,18 +99,26 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void seedPosts() {
-        if (postRepository.count() == 0) {
-            Post p1 = postRepository.save(new Post("Anurag Yadav", "Welcome to Campus Connect!", "Official platform for students & faculty.", "General", "2026-09-20 10:00", 15));
-            Post p2 = postRepository.save(new Post("Prof. Sumeet Rathod", "Mid-Sem Exam Preparation Strategy - IT Department", "Detailed notes and syllabus outline for Java Programming.", "Academics", "2026-09-19 14:30", 28));
-            Post p3 = postRepository.save(new Post("Atul Tiwari", "Annual Hackathon 2026 Registration Open!", "Form your teams of 4 and register before October 1st.", "Events", "2026-09-18 09:15", 42));
+        Post welcome=seedPost("demo-welcome","Welcome to Campus Connect!","Share questions and ideas with fellow engineering students.","General","2026-09-20 10:00","demo.it.fe.a@tsdcem.ac.in","Anurag Yadav");
+        Post java=seedPost("demo-java","Java revision: collections and generics","What examples helped you understand the Collections Framework before exams?","Academics","2026-09-19 14:30","demo.ecs.se.a@tsdcem.ac.in","Priya Sharma");
+        Post dsa=seedPost("demo-dsa","DSA practice group for graph algorithms","Looking for peers to solve BFS, DFS and shortest path problems together.","Technology","2026-09-18 09:15","demo.ce.fe.a@tsdcem.ac.in","Atul Tiwari");
+        seedPost("demo-gate","GATE preparation study plan","How are you balancing core subjects and mock tests this semester?","Academics","2026-09-17 11:00","demo.me.fe.a@tsdcem.ac.in","Hrishabh Soni");
+        seedPost("demo-internship","Internship preparation: project portfolio","Which project write-ups best explain practical engineering work?","Placements","2026-09-16 16:00","demo.it.se.a@tsdcem.ac.in","Anurag Yadav");
+        seedComment("demo-comment-welcome",welcome,"Atul Tiwari","Demo discussion: what topics should our next DSA session cover?","2026-09-20 10:15");
+        seedComment("demo-comment-dsa",dsa,"Hrishabh Soni","Demo discussion: begin with team matching and project ideas.","2026-09-18 11:00");
+        seedComment("demo-comment-java",java,"Priya Sharma","Demo discussion: small code examples made generics easier to follow.","2026-09-19 15:00");
+    }
 
-            if (commentRepository.count() == 0) {
-                commentRepository.saveAll(List.of(
-                        new Comment(p1.getId(), "Atul Tiwari", "Great platform! Looking forward to updates.", "2026-09-20 10:15"),
-                        new Comment(p3.getId(), "Hrishabh Soni", "Is there any team size limit for the hackathon?", "2026-09-18 11:00")
-                ));
-            }
-        }
+    private Post seedPost(String key,String title,String content,String category,String date,String email,String author){
+        Student student=studentRepository.findByEmailIgnoreCase(email).orElse(null);
+        Post post=postRepository.findAll().stream().filter(p->key.equals(p.getDemoKey())).findFirst().orElseGet(Post::new);
+        post.setDemoKey(key);post.setTitle(title);post.setContent(content);post.setCategory(category);post.setCreatedAt(date);
+        post.setAuthorEmail(email);post.setAuthorName(student==null?author:student.getName());post.setVoteCount(0);post.setHidden(false);
+        return postRepository.save(post);
+    }
+    private void seedComment(String key,Post post,String author,String content,String date){
+        if(commentRepository.findAll().stream().anyMatch(c->key.equals(c.getDemoKey())))return;
+        Comment comment=new Comment(post.getId(),author,content,date);comment.setDemoKey(key);commentRepository.save(comment);
     }
 
     private void seedEvents() {

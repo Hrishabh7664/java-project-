@@ -57,7 +57,9 @@ public class ComplaintController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Complaint> updateComplaint(@PathVariable Long id, @Valid @RequestBody Complaint complaint) {
+    public ResponseEntity<Complaint> updateComplaint(@PathVariable Long id, @Valid @RequestBody Complaint complaint, Authentication authentication) {
+        if (authentication.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals("ROLE_ADMIN")))
+            return ResponseEntity.status(403).build();
         Complaint updated = complaintService.updateComplaint(id, complaint);
         if (updated == null) {
             return ResponseEntity.notFound().build();
@@ -66,7 +68,9 @@ public class ComplaintController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteComplaint(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteComplaint(@PathVariable Long id, Authentication authentication) {
+        if (authentication.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals("ROLE_ADMIN")))
+            return ResponseEntity.status(403).build();
         return complaintService.deleteComplaint(id)
                 ? ResponseEntity.noContent().build()
                 : ResponseEntity.notFound().build();

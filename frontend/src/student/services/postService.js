@@ -19,11 +19,14 @@ function mapComment(comment) {
 function mapPost(post, comments = []) {
   return {
     ...post,
+    authorEmail: post.authorEmail,
     timeAgo: timeAgo(post.createdAt),
     authorRole: 'Campus member',
     authorAvatar: null,
-    votes: post.voteCount || 0,
-    userVoted: 0,
+    votes: post.voteCount ?? 0,
+    userVoted: post.userVote ?? 0,
+    upvotes: post.upvotes ?? 0,
+    downvotes: post.downvotes ?? 0,
     comments: comments.map(mapComment),
     commentsCount: comments.length
   };
@@ -32,14 +35,12 @@ function mapPost(post, comments = []) {
 export const postService = {
   async getCategories() { return postCategories; },
 
-  async getPosts(categoryFilter = 'All') {
+  async getPosts(categoryFilter = 'All', options = {}) {
     const [response, commentResponse] = await Promise.all([
-      api.get('/posts'),
+      api.get('/posts', { params: { category: categoryFilter === 'All' ? undefined : categoryFilter, search: options.search || undefined, sort: options.sort || 'recent', page: options.page || 0, size: options.size || 50 } }),
       api.get('/comments')
     ]);
-    const records = categoryFilter === 'All'
-      ? response.data
-      : response.data.filter((post) => post.category === categoryFilter);
+    const records = response.data;
     const commentsByPost = commentResponse.data.reduce((grouped, comment) => {
       const postComments = grouped.get(comment.postId) || [];
       postComments.push(comment);
@@ -70,9 +71,17 @@ export const postService = {
   async deletePost(id) { await api.delete(`/posts/${id}`); },
 
   async votePost(id, direction) {
-    const response = await api.post(`/posts/${id}/vote`, null, { params: { delta: direction } });
-    return mapPost(response.data);
+    const response = await api.post(`/posts/${id}/vote`, null, { params: { direction } });
+    return response.data;
   },
+
+  async reportContent(contentType, contentId, reason) {
+    const response = await api.post('/content-reports', { contentType, contentId, reason });
+    return response.data;
+  },
+
+  async updateComment(id,content){return (await api.put(`/comments/${id}`,{content})).data;},
+  async deleteComment(id){await api.delete(`/comments/${id}`);},
 
   async addComment(postId, content) {
     const response = await api.post('/comments', { postId, content });

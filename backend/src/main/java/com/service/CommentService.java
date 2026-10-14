@@ -22,11 +22,24 @@ public class CommentService {
     }
 
     public List<Comment> getCommentsByPostId(Long postId) {
-        return commentRepository.findByPostId(postId);
+        return commentRepository.findByPostIdAndHiddenFalse(postId);
     }
 
     public Comment getCommentById(Long id) {
-        return commentRepository.findById(id).orElse(null);
+        return commentRepository.findById(id).filter(c -> !c.isHidden()).orElse(null);
+    }
+
+    public Comment getAnyCommentById(Long id) { return commentRepository.findById(id).orElse(null); }
+    public List<Comment> getAllCommentsForModeration() { return commentRepository.findAll(); }
+    public Comment moderateComment(Long id,boolean hidden,String admin,String reason) {
+        Comment comment=commentRepository.findById(id).orElse(null);if(comment==null)return null;
+        comment.setHidden(hidden);comment.setModeratedBy(admin);comment.setModeratedAt(java.time.Instant.now());comment.setModerationReason(reason);
+        return commentRepository.save(comment);
+    }
+
+    public Comment updateOwnComment(Long id,String content){
+        Comment comment=getAnyCommentById(id);if(comment==null||comment.isHidden())return null;
+        comment.setContent(content);return commentRepository.save(comment);
     }
 
     public Comment createComment(Comment comment) {

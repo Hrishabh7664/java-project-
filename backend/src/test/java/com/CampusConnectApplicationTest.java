@@ -98,16 +98,16 @@ class CampusConnectApplicationTest {
     }
 
     @Test
-    void testPostCrudAndVoteOperations() {
+    void testPostCrudOperations() {
         Post post = new Post("Anurag Yadav", "Test Post", "Content", "General", "2026-09-20 10:00", 10);
         post.setId(100L);
 
         when(postRepository.findById(100L)).thenReturn(Optional.of(post));
         when(postRepository.save(any(Post.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Post voted = postService.votePost(100L, 1);
-        assertNotNull(voted);
-        assertEquals(11, voted.getVoteCount());
+        Post saved = postService.createPost(post);
+        assertNotNull(saved);
+        assertEquals(0, saved.getVoteCount());
     }
 
     @Test

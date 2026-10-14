@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { MessageSquare, Pencil, Trash2, X, Check } from 'lucide-react';
+import { MessageSquare, Pencil, Trash2, X, Check, Flag } from 'lucide-react';
 import { VoteButton } from './VoteButton';
 import { CommentSection } from './CommentSection';
 import { postService } from '../services/postService';
@@ -14,6 +14,12 @@ export const PostCard = ({ post, onDelete }) => {
   const [title, setTitle] = useState(post.title);
   const [content, setContent] = useState(post.content);
   const [error, setError] = useState('');
+  const [voting, setVoting] = useState(false);
+  const [reporting, setReporting] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportMessage, setReportMessage] = useState('');
+  const [reportingCommentId, setReportingCommentId] = useState(null);
+  const [commentReportReason, setCommentReportReason] = useState('');
 
   useEffect(() => {
     setCurrentPost(post);
@@ -22,13 +28,26 @@ export const PostCard = ({ post, onDelete }) => {
   }, [post]);
 
   const handleVote = async (dir) => {
+    if (voting) return;
+    setVoting(true);
     try {
       const updated = await postService.votePost(currentPost.id, dir);
-      setCurrentPost({ ...updated, userVoted: dir });
+      setCurrentPost((old) => ({ ...old, userVoted: updated.userVote, votes: updated.score, upvotes: updated.upvotes, downvotes: updated.downvotes }));
       setError('');
     } catch (requestError) {
       setError(apiErrorMessage(requestError));
-    }
+    } finally { setVoting(false); }
+  };
+
+  const handleReport = async (event) => {
+    event.preventDefault();
+    try { await postService.reportContent('POST', currentPost.id, reportReason.trim());setReportMessage('Your report was submitted for administrator review.');setReportReason('');setReporting(false); }
+    catch(requestError){setError(apiErrorMessage(requestError,'Your report could not be submitted.'));}
+  };
+  const handleCommentReport = async (event) => {
+    event.preventDefault();
+    try { await postService.reportContent('COMMENT',reportingCommentId,commentReportReason.trim());setReportMessage('Your report was submitted for administrator review.');setReportingCommentId(null);setCommentReportReason(''); }
+    catch(requestError){setError(apiErrorMessage(requestError,'Your report could not be submitted.'));}
   };
 
   const handleAddComment = async (commentText) => {
@@ -62,7 +81,7 @@ export const PostCard = ({ post, onDelete }) => {
       onDelete?.(currentPost.id);
     } catch (requestError) { setError(apiErrorMessage(requestError)); }
   };
-  const canManage = user?.role === 'ADMIN' || currentPost.authorName === user?.name;
+  const canManage = user?.role === 'ADMIN' || currentPost.authorEmail?.toLowerCase() === user?.email?.toLowerCase();
 
   return (
     <article className="student-card student-card-hover post-card" style={{ marginBottom: '1.25rem', overflow: 'hidden', minWidth: 0, wordBreak: 'break-word' }}>
@@ -94,7 +113,7 @@ export const PostCard = ({ post, onDelete }) => {
       </>}
 
       <div className="post-actions">
-        <VoteButton votes={currentPost.votes} userVoted={currentPost.userVoted} onVote={handleVote} />
+        <VoteButton votes={currentPost.votes} userVoted={currentPost.userVoted} onVote={handleVote} disabled={voting} />
 
         <div style={{ display: 'flex', gap: '1rem' }}>
           {canManage && <>
@@ -107,12 +126,21 @@ export const PostCard = ({ post, onDelete }) => {
           >
             <MessageSquare size={16} /> {currentPost.commentsCount} Comments
           </button>
+          {user?.role!=='ADMIN' && currentPost.authorEmail?.toLowerCase()!==user?.email?.toLowerCase() && <button onClick={()=>{setReporting(v=>!v);setReportMessage('');}} aria-label="Report post"><Flag size={16} /> Report</button>}
         </div>
       </div>
 
+      {reportMessage && <p role="status" className="success-notice">{reportMessage}</p>}
+      {reporting && <form onSubmit={handleReport} className="report-form">
+        <label className="form-label" htmlFor={`report-post-${currentPost.id}`}>Why are you reporting this post?</label>
+        <textarea id={`report-post-${currentPost.id}`} className="form-input" value={reportReason} onChange={e=>setReportReason(e.target.value)} required maxLength={1000} rows={2}/>
+        <button className="btn btn-primary" type="submit" disabled={!reportReason.trim()}>Submit report</button>
+      </form>}
+
       {showComments && (
-        <CommentSection comments={currentPost.comments} onAddComment={handleAddComment} />
+        <CommentSection comments={currentPost.comments} onAddComment={handleAddComment} onReport={(id)=>{setReportingCommentId(id);setCommentReportReason('');setReportMessage('');}} />
       )}
+      {reportingCommentId && <form onSubmit={handleCommentReport} className="report-form"><label className="form-label" htmlFor={`report-comment-${reportingCommentId}`}>Why are you reporting this comment?</label><textarea id={`report-comment-${reportingCommentId}`} className="form-input" value={commentReportReason} onChange={e=>setCommentReportReason(e.target.value)} required maxLength={1000}/><button className="btn btn-primary" type="submit" disabled={!commentReportReason.trim()}>Submit report</button><button className="btn btn-outline" type="button" onClick={()=>setReportingCommentId(null)}>Cancel</button></form>}
     </article>
   );
 };

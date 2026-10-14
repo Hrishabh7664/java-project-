@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Comment } from './Comment';
 import { Send } from 'lucide-react';
 
-export const CommentSection = ({ comments, onAddComment }) => {
+export const CommentSection = ({ comments, onAddComment, onReport }) => {
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -42,7 +42,7 @@ export const CommentSection = ({ comments, onAddComment }) => {
       </form>
 
       <div>
-        {comments.map(c => <Comment key={c.id} comment={c} />)}
+        {comments.map(c => <Comment key={c.id} comment={c} onReport={onReport} />)}
       </div>
     </div>
   );

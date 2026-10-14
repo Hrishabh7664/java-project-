@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
-@Table(name = "posts")
+@Table(name = "posts", uniqueConstraints=@UniqueConstraint(name="uk_post_demo_key",columnNames="demo_key"))
 public class Post {
 
     @Id
@@ -15,6 +15,7 @@ public class Post {
     private String authorName;
 
     @JsonIgnore
+    @Column(length=254)
     private String authorEmail;
 
     @NotBlank(message = "Title is required")
@@ -25,7 +26,19 @@ public class Post {
 
     private String category;
     private String createdAt;
+    @jakarta.persistence.Transient
     private Integer voteCount = 0;
+    @Column(nullable = false)
+    private boolean hidden = false;
+    @Column(columnDefinition = "TEXT")
+    private String moderationReason;
+    private String moderatedBy;
+    private java.time.Instant moderatedAt;
+    @Column(name="demo_key",unique=true,length=80)
+    private String demoKey;
+    @jakarta.persistence.Transient private Integer userVote = 0;
+    @jakarta.persistence.Transient private Long upvotes = 0L;
+    @jakarta.persistence.Transient private Long downvotes = 0L;
 
     public Post() {
     }
@@ -36,7 +49,7 @@ public class Post {
         this.content = content;
         this.category = category;
         this.createdAt = createdAt;
-        this.voteCount = voteCount != null ? voteCount : 0;
+        this.voteCount = 0;
     }
 
     public Long getId() {
@@ -97,4 +110,16 @@ public class Post {
     public void setVoteCount(Integer voteCount) {
         this.voteCount = voteCount;
     }
+    public boolean isHidden() { return hidden; }
+    public void setHidden(boolean hidden) { this.hidden = hidden; }
+    public String getModerationReason() { return moderationReason; }
+    public void setModerationReason(String moderationReason) { this.moderationReason = moderationReason; }
+    public String getModeratedBy() { return moderatedBy; }
+    public void setModeratedBy(String moderatedBy) { this.moderatedBy = moderatedBy; }
+    public java.time.Instant getModeratedAt() { return moderatedAt; }
+    public void setModeratedAt(java.time.Instant moderatedAt) { this.moderatedAt = moderatedAt; }
+    public Integer getUserVote(){return userVote;} public void setUserVote(Integer value){userVote=value;}
+    public Long getUpvotes(){return upvotes;} public void setUpvotes(Long value){upvotes=value;}
+    public Long getDownvotes(){return downvotes;} public void setDownvotes(Long value){downvotes=value;}
+    public String getDemoKey(){return demoKey;} public void setDemoKey(String key){demoKey=key;}
 }
