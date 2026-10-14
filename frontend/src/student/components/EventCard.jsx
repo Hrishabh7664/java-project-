@@ -9,7 +9,7 @@ export const EventCard = ({ event, onRegister }) => {
     <div className="student-card student-card-hover" style={{ display: 'flex', flexDirection: 'column', height: 'auto', marginBottom: '1.25rem', overflow: 'hidden', minWidth: 0 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <span className="badge badge-trust">{event.category}</span>
-        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Campus event</span>
+        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{event.sharingLabel || 'Local event'} · {event.originCampus || 'TSDCEM demo campus'}</span>
       </div>
 
       <h3

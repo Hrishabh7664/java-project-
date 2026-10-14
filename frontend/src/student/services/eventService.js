@@ -8,6 +8,8 @@ export const eventService = {
     return response.data.map(mapEvent);
   },
 
+  async getSharedEvents(){return (await api.get('/events/shared')).data;},
+
   async getEventById(id) {
     const response = await api.get(`/events/${id}`);
     return mapEvent(response.data);

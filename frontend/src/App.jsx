@@ -43,6 +43,7 @@ import { TeamDetails } from './student/pages/TeamDetails';
 import { Complaints } from './student/pages/Complaints';
 import { MyOrganizations } from './student/pages/MyOrganizations';
 import { MyActivity } from './student/pages/MyActivity';
+import { Magazine } from './student/pages/Magazine';
 
 // Admin Module Layout & Pages
 import { AdminLayout } from './admin/pages/AdminLayout';
@@ -56,6 +57,8 @@ import { ManageAppointments } from './admin/pages/ManageAppointments';
 import { ManageEvents } from './admin/pages/ManageEvents';
 import { ManageNotices } from './admin/pages/ManageNotices';
 import { ManageElections } from './admin/pages/ManageElections';
+import { ManageMagazine } from './admin/pages/ManageMagazine';
+import { EventSharing } from './admin/pages/EventSharing';
 import { CandidateManagement } from './admin/pages/CandidateManagement';
 import { ElectionResults } from './admin/pages/ElectionResults';
 import { ManageReports } from './admin/pages/ManageReports';
@@ -110,6 +113,7 @@ export default function App() {
             <Route path="notices" element={<Notices />} />
             <Route path="elections" element={<Elections />} />
             <Route path="elections/:id" element={<ElectionDetails />} />
+            <Route path="magazine" element={<Magazine />} />
             <Route path="assignments" element={<MyAssignments />} />
             <Route path="assignments/:id" element={<AssignmentDetails />} />
             <Route path="attendance" element={<Attendance />} />
@@ -131,6 +135,8 @@ export default function App() {
             <Route path="organizations" element={<ManageOrganizations />} />
             <Route path="appointments" element={<ManageAppointments />} />
             <Route path="events" element={<ManageEvents />} />
+            <Route path="event-sharing" element={<EventSharing />} />
+            <Route path="magazine" element={<ManageMagazine />} />
             <Route path="notices" element={<ManageNotices />} />
             <Route path="elections" element={<ManageElections />} />
             <Route path="elections/candidates" element={<CandidateManagement />} />

@@ -26,6 +26,7 @@ public class Event {
     private Integer capacity;
     private String registrationDeadline;
     private String eligibility;
+    @jakarta.persistence.Column(name="origin_campus",nullable=false,length=180) private String originCampus="TSDCEM demo campus";
 
     public Event() {
     }
@@ -46,6 +47,7 @@ public class Event {
     public void setRegistrationDeadline(String registrationDeadline) { this.registrationDeadline = registrationDeadline; }
     public String getEligibility() { return eligibility; }
     public void setEligibility(String eligibility) { this.eligibility = eligibility; }
+    public String getOriginCampus(){return originCampus;} public void setOriginCampus(String s){originCampus=s;}
 
     public Long getId() {
         return id;

@@ -10,7 +10,10 @@ import {
   ShieldAlert,
   UserCheck,
   User,
-  LogOut
+  LogOut,
+  Vote,
+  BookOpen,
+  Share2
 } from 'lucide-react';
 
 export const AdminSidebar = ({ mobileOpen, onCloseMobile }) => {
@@ -20,6 +23,9 @@ export const AdminSidebar = ({ mobileOpen, onCloseMobile }) => {
     { to: "/admin/faculty", label: "Manage Faculty", icon: GraduationCap },
     { to: "/admin/clubs", label: "Manage Clubs", icon: Briefcase },
     { to: "/admin/events", label: "Event Management", icon: Calendar },
+    { to: "/admin/event-sharing", label: "Cross-campus sharing", icon: Share2 },
+    { to: "/admin/elections", label: "Elections", icon: Vote },
+    { to: "/admin/magazine", label: "Magazine", icon: BookOpen },
     { to: "/admin/notices", label: "Official Notices", icon: Bell },
     { to: "/admin/reports", label: "Reports & Complaints", icon: ShieldAlert },
     { to: "/admin/profile", label: "Admin Profile", icon: User }

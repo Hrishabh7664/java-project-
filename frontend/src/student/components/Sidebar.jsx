@@ -30,6 +30,8 @@ export const StudentSidebar = ({ mobileOpen, onCloseMobile }) => {
     { to: "/student/clubs/applications", label: "Club Applications", icon: ClipboardList },
     { to: "/student/clubs/manage", label: "Club Leader Workspace", icon: ShieldCheck },
     { to: "/student/events", label: "Campus Events", icon: Calendar },
+    { to: "/student/magazine", label: "Campus Magazine", icon: BookOpen },
+    { to: "/student/elections", label: "Elections", icon: Vote },
     { to: "/student/notices", label: "Official Notices", icon: Bell },
     { to: "/student/assignments", label: "My Assignments", icon: BookOpen },
     { to: "/student/timetable", label: "My Timetable", icon: CalendarDays },

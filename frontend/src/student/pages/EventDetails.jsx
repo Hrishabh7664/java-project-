@@ -56,6 +56,7 @@ export const EventDetails = () => {
 
       <div className="student-card">
         <span className="badge badge-trust" style={{ marginBottom: '0.5rem' }}>{event.category}</span>
+        <p>{event.originCampus || 'TSDCEM demo campus'} · {event.sharingLabel || 'Local event'}</p>
         <h1 style={{ fontSize: '1.8rem', color: 'var(--primary-dark)', marginBottom: '0.4rem' }}>{event.title}</h1>
         <p style={{ color: 'var(--primary-light)', fontWeight: '600', marginBottom: '1rem' }}>Organized by {event.organizer}</p>
 

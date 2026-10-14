@@ -11,7 +11,23 @@ export const Events = () => {
   useEffect(() => {
     async function load() {
       try {
-        setEvents(await eventService.getEvents());
+        const [local,shared]=await Promise.all([eventService.getEvents(),eventService.getSharedEvents()]);
+        const sharesById = new Map();
+        shared.forEach(share => {
+          const destinations = sharesById.get(share.event.id) || [];
+          destinations.push(share.destinationCampus);
+          sharesById.set(share.event.id, destinations);
+        });
+        const localIds = new Set(local.map(event => event.id));
+        const localEvents = local.map(event => {
+          const destinations = sharesById.get(event.id) || [];
+          return { ...event, sharingLabel: destinations.length ? `Shared internally for ${destinations.join(', ')}` : 'Local event' };
+        });
+        const sharedOnly = shared.filter(share => !localIds.has(share.event.id)).map(share => ({
+          ...share.event,
+          sharingLabel: `Shared internally for ${share.destinationCampus}`,
+        }));
+        setEvents([...localEvents, ...sharedOnly]);
       } catch (requestError) {
         setError(apiErrorMessage(requestError, 'Events could not be loaded.'));
       } finally {

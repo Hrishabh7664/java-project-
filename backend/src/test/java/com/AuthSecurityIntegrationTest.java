@@ -57,6 +57,12 @@ class AuthSecurityIntegrationTest {
     @Autowired com.repository.CommentRepository commentRepository;
     @Autowired com.repository.PostVoteRepository postVoteRepository;
     @Autowired com.repository.ContentReportRepository contentReportRepository;
+    @Autowired ElectionRepository electionRepository;
+    @Autowired com.repository.ElectionCandidateRepository electionCandidateRepository;
+    @Autowired com.repository.ElectionBallotRepository electionBallotRepository;
+    @Autowired com.repository.EventShareRepository eventShareRepository;
+    @Autowired com.repository.MagazineIssueRepository magazineIssueRepository;
+    @Autowired com.repository.EventRepository eventRepository;
 
     @Test
     void registrationLoginAndProtectedApiWork() throws Exception {
@@ -214,6 +220,63 @@ class AuthSecurityIntegrationTest {
         String body="{\"name\":\""+name+"\",\"email\":\""+email+"\",\"password\":\"CampusDemo123\"}";
         return objectMapper.readTree(mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString()).path("token").asText();
+    }
+
+    @Test
+    void electionVotingEligibilityClosureAndPublishedResultsAreEnforced() throws Exception {
+        String adminLogin=mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"integration.admin@tsdcem.ac.in\",\"password\":\"IntegrationDemo123\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();String admin=objectMapper.readTree(adminLogin).path("token").asText();
+        String student=registerToken("election."+UUID.randomUUID()+"@tsdcem.ac.in","Election Student");String other=registerToken("election2."+UUID.randomUUID()+"@tsdcem.ac.in","Other Student");
+        JsonNode identity=objectMapper.readTree(mvc.perform(get("/api/auth/me").header("Authorization","Bearer "+student)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        Student studentRow=studentRepository.findByEmailIgnoreCase(identity.path("email").asText()).orElseThrow();studentRow.setDepartment("IT");studentRow.setYear("SE");studentRepository.save(studentRow);
+        Election e=new Election("Integration student council vote","Secretary","2020-01-01T00:00","2099-01-01T00:00","ACTIVE");e.setEligibleDepartments("IT");e.setEligibleYears("SE");
+        String eJson=mvc.perform(post("/api/elections").header("Authorization","Bearer "+admin).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(e)))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();long electionId=objectMapper.readTree(eJson).path("id").asLong();
+        mvc.perform(put("/api/elections/"+electionId).header("Authorization","Bearer "+student).contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(e))).andExpect(status().isForbidden());
+        var candidate=mvc.perform(post("/api/elections/"+electionId+"/candidates").header("Authorization","Bearer "+admin).contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Illustrative Candidate\",\"department\":\"IT\",\"year\":\"SE\",\"manifesto\":\"Integration test only\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();long candidateId=objectMapper.readTree(candidate).path("id").asLong();
+        mvc.perform(put("/api/elections/"+electionId+"/lifecycle").header("Authorization","Bearer "+admin).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"OPEN\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/elections/"+electionId+"/ballots").header("Authorization","Bearer "+student).contentType(MediaType.APPLICATION_JSON).content("{\"candidateId\":"+candidateId+"}"))
+                .andExpect(status().isCreated());
+        mvc.perform(post("/api/elections/"+electionId+"/ballots").header("Authorization","Bearer "+student).contentType(MediaType.APPLICATION_JSON).content("{\"candidateId\":"+candidateId+"}"))
+                .andExpect(status().isConflict());assertEquals(1,electionBallotRepository.countByElectionId(electionId));
+        String resultsBefore=mvc.perform(get("/api/elections/"+electionId+"/results").header("Authorization","Bearer "+student)).andExpect(status().isForbidden()).andReturn().getResponse().getContentAsString();
+        String otherEmail=objectMapper.readTree(mvc.perform(get("/api/auth/me").header("Authorization","Bearer "+other)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).path("email").asText();
+        Student otherRow=studentRepository.findByEmailIgnoreCase(otherEmail).orElseThrow();otherRow.setDepartment("CE");otherRow.setYear("FE");studentRepository.save(otherRow);
+        mvc.perform(post("/api/elections/"+electionId+"/ballots").header("Authorization","Bearer "+other).contentType(MediaType.APPLICATION_JSON).content("{\"candidateId\":"+candidateId+"}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/api/elections/"+electionId+"/lifecycle").header("Authorization","Bearer "+admin).contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"CLOSED\",\"publishResults\":true}"))
+                .andExpect(status().isOk());
+        JsonNode results=objectMapper.readTree(mvc.perform(get("/api/elections/"+electionId+"/results").header("Authorization","Bearer "+student)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(1,results.path("results").get(0).path("votes").asInt());
+        mvc.perform(post("/api/elections/"+electionId+"/ballots").header("Authorization","Bearer "+other).contentType(MediaType.APPLICATION_JSON).content("{\"candidateId\":"+candidateId+"}"))
+                .andExpect(status().isBadRequest());
+        assertNotNull(electionRepository.findById(electionId).orElse(null));assertEquals(1,electionCandidateRepository.findByElectionId(electionId).size());
+        assertTrue(electionRepository.findById(electionId).orElseThrow().isResultsPublished());
+    }
+
+    @Test
+    void eventSharingAndMagazineVisibilityAreProtectedAndPersistent() throws Exception {
+        String adminLogin=mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"integration.admin@tsdcem.ac.in\",\"password\":\"IntegrationDemo123\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();String admin=objectMapper.readTree(adminLogin).path("token").asText();
+        String student=registerToken("share."+UUID.randomUUID()+"@tsdcem.ac.in","Share Student");long eventId=eventRepository.findAll().get(0).getId();
+        String shareJson=mvc.perform(post("/api/event-shares").header("Authorization","Bearer "+student).contentType(MediaType.APPLICATION_JSON).content("{\"eventId\":"+eventId+",\"destinationCampus\":\"Demo Destination Campus\"}"))
+                .andExpect(status().isForbidden()).andReturn().getResponse().getContentAsString();
+        shareJson=mvc.perform(post("/api/event-shares").header("Authorization","Bearer "+admin).contentType(MediaType.APPLICATION_JSON).content("{\"eventId\":"+eventId+",\"destinationCampus\":\"Demo Destination Campus\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();long shareId=objectMapper.readTree(shareJson).path("id").asLong();
+        assertEquals(1,eventShareRepository.findByStatusOrderByCreatedAtDesc("ACTIVE").size());
+        mvc.perform(get("/api/event-shares/history").header("Authorization","Bearer "+student)).andExpect(status().isForbidden());
+        mvc.perform(put("/api/event-shares/"+shareId+"/revoke").header("Authorization","Bearer "+admin)).andExpect(status().isOk());
+        assertEquals("REVOKED",eventShareRepository.findById(shareId).orElseThrow().getStatus());
+        MagazineIssue issue=magazineIssueRepository.findAll().get(0);
+        mvc.perform(get("/api/magazine/issues/"+issue.getId()).header("Authorization","Bearer "+student)).andExpect(status().isOk());
+        mvc.perform(get("/api/magazine/admin/issues").header("Authorization","Bearer "+student)).andExpect(status().isForbidden());
+        MagazineIssue draft=magazineIssueRepository.save(new MagazineIssue("integration-unpublished","Unpublished integration issue",null,null,"test",null,null,false,true));
+        mvc.perform(get("/api/magazine/issues/"+draft.getId()).header("Authorization","Bearer "+student)).andExpect(status().isNotFound());
+        mvc.perform(put("/api/magazine/admin/issues/"+draft.getId()+"/publish").header("Authorization","Bearer "+admin).contentType(MediaType.APPLICATION_JSON).content("{\"published\":true}"))
+                .andExpect(status().isOk());
+        assertTrue(magazineIssueRepository.findById(draft.getId()).orElseThrow().isPublished());
     }
 
     @Test

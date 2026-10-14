@@ -15,9 +15,15 @@ public class Election {
     private String title;
 
     private String position;
+    @jakarta.persistence.Column(columnDefinition="TEXT") private String description;
     private String startDate;
     private String endDate;
     private String status;
+    @jakarta.persistence.Column(name="eligible_departments",length=300) private String eligibleDepartments="ALL";
+    @jakarta.persistence.Column(name="eligible_years",length=100) private String eligibleYears="ALL";
+    @jakarta.persistence.Column(name="published_results",nullable=false) private boolean resultsPublished=false;
+    @jakarta.persistence.Column(name="created_by",length=254) private String createdBy;
+    private java.time.Instant updatedAt;
 
     public Election() {
     }
@@ -77,4 +83,10 @@ public class Election {
     public void setStatus(String status) {
         this.status = status;
     }
+    public String getDescription(){return description;}public void setDescription(String v){description=v;}
+    public String getEligibleDepartments(){return eligibleDepartments;} public void setEligibleDepartments(String s){eligibleDepartments=s;}
+    public String getEligibleYears(){return eligibleYears;} public void setEligibleYears(String s){eligibleYears=s;}
+    public boolean isResultsPublished(){return resultsPublished;} public void setResultsPublished(boolean b){resultsPublished=b;}
+    public String getCreatedBy(){return createdBy;} public void setCreatedBy(String s){createdBy=s;}
+    public java.time.Instant getUpdatedAt(){return updatedAt;} public void setUpdatedAt(java.time.Instant i){updatedAt=i;}
 }

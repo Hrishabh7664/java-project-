@@ -21,9 +21,11 @@ public class DataInitializer implements CommandLineRunner {
     private final EventRepository eventRepository;
     private final NoticeRepository noticeRepository;
     private final ElectionRepository electionRepository;
+    private final ElectionCandidateRepository electionCandidateRepository;
     private final ComplaintRepository complaintRepository;
     private final PasswordEncoder passwordEncoder;
     private final Environment environment;
+    private final com.repository.MagazineIssueRepository magazineIssues;
 
     public DataInitializer(StudentRepository studentRepository,
                            ClubRepository clubRepository,
@@ -32,9 +34,11 @@ public class DataInitializer implements CommandLineRunner {
                            EventRepository eventRepository,
                            NoticeRepository noticeRepository,
                            ElectionRepository electionRepository,
+                           ElectionCandidateRepository electionCandidateRepository,
                            ComplaintRepository complaintRepository,
                            PasswordEncoder passwordEncoder,
-                           Environment environment) {
+                           Environment environment,
+                           com.repository.MagazineIssueRepository magazineIssues) {
         this.studentRepository = studentRepository;
         this.clubRepository = clubRepository;
         this.postRepository = postRepository;
@@ -42,9 +46,11 @@ public class DataInitializer implements CommandLineRunner {
         this.eventRepository = eventRepository;
         this.noticeRepository = noticeRepository;
         this.electionRepository = electionRepository;
+        this.electionCandidateRepository = electionCandidateRepository;
         this.complaintRepository = complaintRepository;
         this.passwordEncoder = passwordEncoder;
         this.environment = environment;
+        this.magazineIssues = magazineIssues;
     }
 
     @Override
@@ -55,6 +61,7 @@ public class DataInitializer implements CommandLineRunner {
         seedEvents();
         seedNotices();
         seedElections();
+        seedMagazine();
         seedComplaints();
         provisionRoleAccount("ADMIN");
         provisionRoleAccount("FACULTY");
@@ -141,10 +148,18 @@ public class DataInitializer implements CommandLineRunner {
 
     private void seedElections() {
         if (electionRepository.count() == 0) {
-            electionRepository.saveAll(List.of(
-                    new Election("Student Council President 2026", "President", "2026-10-01", "2026-10-05", "UPCOMING")
-            ));
+            Election demo = new Election("Illustrative Demo Student Council Election", "Student representative", "2026-10-01T09:00", "2026-10-05T17:00", "DRAFT");
+            demo.setDescription("Illustrative workflow sample only. This is not an official college election.");
+            demo.setEligibleDepartments("ALL");
+            demo.setEligibleYears("ALL");
+            demo = electionRepository.save(demo);
+            electionCandidateRepository.save(new ElectionCandidate(demo, "Illustrative Demo Candidate", "IT", "FE", "Demo profile only; not an official candidate."));
         }
+    }
+
+    private void seedMagazine(){
+        if(magazineIssues.findByDemoKey("illustrative-issue-2026-01").isEmpty())
+            magazineIssues.save(new MagazineIssue("illustrative-issue-2026-01","Campus Magazine — Illustrative Issue","Demo issue 01",java.time.LocalDate.of(2026,10,1),"Illustrative listing only. No source publication, cover, articles, or PDF were present in the repository.",null,null,true,true));
     }
 
     private void seedComplaints() {

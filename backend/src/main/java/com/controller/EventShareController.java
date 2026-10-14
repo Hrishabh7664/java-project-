@@ -1,0 +1,10 @@
+package com.controller;
+import com.entity.EventShare;import com.repository.EventRepository;import com.repository.EventShareRepository;import org.springframework.http.*;import org.springframework.security.core.Authentication;import org.springframework.web.bind.annotation.*;import org.springframework.web.server.ResponseStatusException;import java.util.List;import java.util.Map;
+@RestController @RequestMapping("/api/event-shares") public class EventShareController{
+ private final EventRepository events;private final EventShareRepository shares;
+ public EventShareController(EventRepository e,EventShareRepository s){events=e;shares=s;}
+ @GetMapping public List<EventShare> list(){return shares.findByStatusOrderByCreatedAtDesc("ACTIVE");}
+ @PostMapping public ResponseEntity<EventShare> create(@RequestBody Map<String,String> body,Authentication auth){long id;try{id=Long.parseLong(body.get("eventId"));}catch(Exception e){throw new IllegalArgumentException("Select a valid event");}String destination=body.getOrDefault("destinationCampus","").trim();if(destination.isBlank()||destination.length()>180)throw new IllegalArgumentException("Destination campus is required (up to 180 characters)");var event=events.findById(id).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Event not found"));return ResponseEntity.status(201).body(shares.save(new EventShare(event,destination,auth.getName())));}
+ @GetMapping("/history") public List<EventShare> history(Authentication auth){if(auth.getAuthorities().stream().noneMatch(a->a.getAuthority().equals("ROLE_ADMIN")))throw new org.springframework.security.access.AccessDeniedException("Administrator access is required");return shares.findAllByOrderByCreatedAtDesc();}
+ @PutMapping("/{id}/revoke") public EventShare revoke(@PathVariable Long id,Authentication auth){var share=shares.findById(id).orElseThrow(()->new ResponseStatusException(HttpStatus.NOT_FOUND,"Share not found"));if(!"ACTIVE".equals(share.getStatus()))throw new IllegalArgumentException("Share is already revoked");share.revoke(auth.getName());return shares.save(share);}
+}

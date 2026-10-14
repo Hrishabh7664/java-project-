@@ -20,16 +20,19 @@ public class EventService {
     private final EventRepository eventRepository;
     private final EventRegistrationRepository registrationRepository;
     private final StudentRepository studentRepository;
+    private final com.repository.EventShareRepository eventShares;
 
-    public EventService(EventRepository eventRepository, EventRegistrationRepository registrationRepository, StudentRepository studentRepository) {
+    public EventService(EventRepository eventRepository, EventRegistrationRepository registrationRepository, StudentRepository studentRepository,com.repository.EventShareRepository eventShares) {
         this.eventRepository = eventRepository;
         this.registrationRepository = registrationRepository;
         this.studentRepository = studentRepository;
+        this.eventShares=eventShares;
     }
 
     public List<Event> getAllEvents() {
         return eventRepository.findAll();
     }
+    public List<com.entity.EventShare> getActiveShares(){return eventShares.findByStatusOrderByCreatedAtDesc("ACTIVE");}
 
     public Event getEventById(Long id) {
         return eventRepository.findById(id).orElse(null);

@@ -26,6 +26,8 @@ public class EventController {
         return eventService.getAllEvents();
     }
 
+    @GetMapping("/shared") public List<com.entity.EventShare> shared(){return eventService.getActiveShares();}
+
     @GetMapping("/{id}")
     public ResponseEntity<Event> getEventById(@PathVariable Long id) {
         Event event = eventService.getEventById(id);
