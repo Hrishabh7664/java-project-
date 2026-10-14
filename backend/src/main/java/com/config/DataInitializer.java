@@ -6,10 +6,12 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.core.annotation.Order;
 
 import java.util.List;
 
 @Component
+@Order(2)
 public class DataInitializer implements CommandLineRunner {
 
     private final StudentRepository studentRepository;
@@ -79,14 +81,21 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void seedClubs() {
-        if (clubRepository.count() == 0) {
-            clubRepository.saveAll(List.of(
-                    new Club("Coding Club", "Technical", "code.png", "cover1.png", "Official competitive programming and open-source club", "IT", "Anurag Yadav", 150),
-                    new Club("Robotics Society", "Technical", "robot.png", "cover2.png", "Hardware and robotics innovation club", "CE", "Atul Tiwari", 85),
-                    new Club("Cultural Committee", "Cultural", "art.png", "cover3.png", "DRAMA, Music and Arts student committee", "All", "Priya Sharma", 200),
-                    new Club("Sports Club", "Sports", "sports.png", "cover4.png", "Inter and intra college sports association", "All", "Hrishabh Soni", 120)
-            ));
-        }
+        seedClub("demo-coding", "Coding Club", "Anurag Yadav", "Demo Coding & Open Source Club", "Technical", "demo.it.fe.a@tsdcem.ac.in", "IT", "Practice programming, peer learning and small open-source projects. This is illustrative demo content.", "Coding sessions, beginner workshops and project showcases.", "Open to enrolled students; beginner friendly.");
+        seedClub("demo-robotics", "Robotics Society", "Atul Tiwari", "Demo Robotics & Making Club", "Technical", "demo.ce.fe.a@tsdcem.ac.in", "CE", "Illustrative demo group for robotics, electronics and hands-on making.", "Prototype sessions, electronics introductions and team challenges.", "Open to enrolled students interested in making and engineering.");
+        seedClub("demo-culture", "Cultural Committee", "Priya Sharma", "Demo Arts & Culture Club", "Cultural", "demo.ecs.se.a@tsdcem.ac.in", "ECS", "Illustrative demo group for music, performance and campus arts.", "Open mic events, music circles and cultural showcases.", "Open to enrolled students; no prior experience required.");
+        seedClub("demo-sports", "Sports Club", "Hrishabh Soni", "Demo Sports & Recreation Club", "Sports", "demo.me.fe.a@tsdcem.ac.in", "ME", "Illustrative demo group for recreational sports and wellbeing.", "Friendly matches, fitness sessions and inter-class activities.", "Open to enrolled students; activities are recreational demo content.");
+        seedClub("demo-literary", null, null, "Demo Literary & Service Club", "Literary / Social Service", "demo.it.se.a@tsdcem.ac.in", "IT", "Illustrative demo group combining reading, writing and community service.", "Reading circles, student writing and local service activities.", "Open to enrolled students interested in reading or volunteering.");
+    }
+
+    private void seedClub(String key,String legacyName,String legacyLeader,String name,String category,String leaderEmail,String department,String description,String activities,String eligibility) {
+        Student leader=studentRepository.findByEmailIgnoreCase(leaderEmail).orElseThrow(()->new IllegalStateException("Demo academic leader account is missing: "+leaderEmail));
+        Club club=clubRepository.findByDemoKey(key).orElseGet(()->clubRepository.findByNameIgnoreCase(legacyName==null?"":legacyName)
+                .filter(old->legacyLeader!=null&&legacyLeader.equals(old.getPresident())).orElseGet(Club::new));club.setDemoKey(key);
+        club.setName(name);club.setCategory(category);club.setDepartment(department);club.setDescription(description);club.setActivities(activities);club.setEligibility(eligibility);club.setLeader(leader);club.setPresident(leader.getName());
+        clubRepository.save(club);
+        String configuredPassword=environment.getProperty("DEMO_CLUB_LEADER_PASSWORD","");
+        if(configuredPassword.length()>=8&&(leader.getPasswordHash()==null||leader.getPasswordHash().isBlank())){leader.setPasswordHash(passwordEncoder.encode(configuredPassword));studentRepository.save(leader);}
     }
 
     private void seedPosts() {

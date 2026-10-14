@@ -3,6 +3,7 @@ package com.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 @Table(name = "clubs")
@@ -26,6 +27,20 @@ public class Club {
 
     private String department;
     private String president;
+
+    @Column(name = "activities", columnDefinition = "TEXT")
+    private String activities;
+
+    @Column(name = "eligibility", columnDefinition = "TEXT")
+    private String eligibility;
+
+    @Column(name = "demo_key", unique = true)
+    private String demoKey;
+
+    @JsonIgnore
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "leader_student_id")
+    private Student leader;
 
     @Min(value = 0, message = "Members count cannot be negative")
     private Integer membersCount = 0;
@@ -115,4 +130,12 @@ public class Club {
     public void setMembersCount(Integer membersCount) {
         this.membersCount = membersCount;
     }
+    public String getActivities() { return activities; }
+    public void setActivities(String activities) { this.activities = activities; }
+    public String getEligibility() { return eligibility; }
+    public void setEligibility(String eligibility) { this.eligibility = eligibility; }
+    public String getDemoKey() { return demoKey; }
+    public void setDemoKey(String demoKey) { this.demoKey = demoKey; }
+    public Student getLeader() { return leader; }
+    public void setLeader(Student leader) { this.leader = leader; }
 }

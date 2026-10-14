@@ -1,6 +1,6 @@
 package com.controller;
 
-import com.entity.Club;
+import com.dto.ClubDtos.*;
 import com.service.ClubService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -20,40 +20,30 @@ public class ClubController {
     }
 
     @GetMapping
-    public List<Club> getAllClubs() {
-        return clubService.getAllClubs();
+    public List<ClubResponse> getAllClubs(@RequestParam(required=false) String search,@RequestParam(required=false) String category,org.springframework.security.core.Authentication auth) {
+        return clubService.directory(search,category,auth.getName());
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Club> getClubById(@PathVariable Long id) {
-        Club club = clubService.getClubById(id);
-        if (club == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(club);
+    public ResponseEntity<ClubResponse> getClubById(@PathVariable Long id,org.springframework.security.core.Authentication auth) {
+        return ResponseEntity.ok(clubService.get(id,auth.getName()));
     }
 
     @PostMapping
-    public ResponseEntity<Club> createClub(@Valid @RequestBody Club club) {
-        Club createdClub = clubService.createClub(club);
+    public ResponseEntity<ClubResponse> createClub(@Valid @RequestBody ClubRequest club) {
+        ClubResponse createdClub = clubService.create(club);
         return ResponseEntity
-                .created(URI.create("/api/clubs/" + createdClub.getId()))
+                .created(URI.create("/api/clubs/" + createdClub.id()))
                 .body(createdClub);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Club> updateClub(@PathVariable Long id, @Valid @RequestBody Club club) {
-        Club updatedClub = clubService.updateClub(id, club);
-        if (updatedClub == null) {
-            return ResponseEntity.notFound().build();
-        }
-        return ResponseEntity.ok(updatedClub);
+    public ResponseEntity<ClubResponse> updateClub(@PathVariable Long id, @Valid @RequestBody ClubRequest club) {
+        return ResponseEntity.ok(clubService.update(id,club));
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteClub(@PathVariable Long id) {
-        return clubService.deleteClub(id)
-                ? ResponseEntity.noContent().build()
-                : ResponseEntity.notFound().build();
+        clubService.delete(id);return ResponseEntity.noContent().build();
     }
 }

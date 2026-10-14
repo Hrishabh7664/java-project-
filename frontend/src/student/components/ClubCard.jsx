@@ -27,7 +27,7 @@ export const ClubCard = ({ club }) => {
         <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
           <Users size={16} /> {club.membersCount} Members
         </span>
-        <span style={{ color: 'var(--primary-light)', fontSize: '0.82rem' }}>View details</span>
+        <span style={{ color: 'var(--primary-light)', fontSize: '0.82rem' }}>{club.isMember ? 'Member · View details' : club.latestApplicationStatus ? `${club.latestApplicationStatus.replaceAll('_',' ')} · View` : 'View details'}</span>
       </div>
     </div>
   );

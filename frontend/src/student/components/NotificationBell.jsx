@@ -4,7 +4,7 @@ import { useStudent } from '../hooks/useStudent';
 import { useNavigate } from 'react-router-dom';
 
 export const NotificationBell = () => {
-  const { notifications, unreadCount, markNotificationRead } = useStudent();
+  const { notifications, unreadCount, markNotificationRead, notificationError } = useStudent();
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -24,6 +24,7 @@ export const NotificationBell = () => {
             </span>
           </div>
 
+          {notificationError && <div role="alert" style={{ padding: '.75rem', color: 'var(--error)' }}>{notificationError}</div>}
           <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
             {notifications.length === 0 ? (
               <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.88rem' }}>

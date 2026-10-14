@@ -25,6 +25,8 @@ import { Forums } from './student/pages/Forums';
 import { PostDetails } from './student/pages/PostDetails';
 import { Clubs } from './student/pages/Clubs';
 import { ClubDetails } from './student/pages/ClubDetails';
+import { ClubApplications } from './student/pages/ClubApplications';
+import { ClubLeaderDashboard } from './student/pages/ClubLeaderDashboard';
 import { Committees } from './student/pages/Committees';
 import { CommitteeDetails } from './student/pages/CommitteeDetails';
 import { Events } from './student/pages/Events';
@@ -98,6 +100,8 @@ export default function App() {
             <Route path="forums" element={<Forums />} />
             <Route path="forums/:id" element={<PostDetails />} />
             <Route path="clubs" element={<Clubs />} />
+            <Route path="clubs/applications" element={<ClubApplications />} />
+            <Route path="clubs/manage" element={<ClubLeaderDashboard />} />
             <Route path="clubs/:id" element={<ClubDetails />} />
             <Route path="committees" element={<Committees />} />
             <Route path="committees/:id" element={<CommitteeDetails />} />

@@ -16,7 +16,9 @@ import {
   Briefcase,
   Activity,
   User,
-  CalendarDays
+  CalendarDays,
+  ClipboardList,
+  ShieldCheck
 } from 'lucide-react';
 
 export const StudentSidebar = ({ mobileOpen, onCloseMobile }) => {
@@ -25,6 +27,8 @@ export const StudentSidebar = ({ mobileOpen, onCloseMobile }) => {
     { to: "/student/feed", label: "Campus Feed", icon: MessageSquare },
     { to: "/student/forums", label: "Category Forums", icon: Compass },
     { to: "/student/clubs", label: "Student Clubs", icon: Users },
+    { to: "/student/clubs/applications", label: "Club Applications", icon: ClipboardList },
+    { to: "/student/clubs/manage", label: "Club Leader Workspace", icon: ShieldCheck },
     { to: "/student/events", label: "Campus Events", icon: Calendar },
     { to: "/student/notices", label: "Official Notices", icon: Bell },
     { to: "/student/assignments", label: "My Assignments", icon: BookOpen },

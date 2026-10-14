@@ -5,9 +5,11 @@ import com.repository.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
+import org.springframework.core.annotation.Order;
 import java.util.List;
 
 @Component
+@Order(1)
 public class AcademicDataInitializer implements CommandLineRunner {
     private final DepartmentRepository departments;
     private final AcademicClassRepository classes;

@@ -70,18 +70,20 @@ Vite runs at <http://localhost:3000> and calls the API at `http://localhost:8080
 
 ## Workflows
 
-- Students can register, sign in, update their profile, read and create posts, comment/vote where permitted, browse persisted events/clubs/notices, view class assignments and timetables, submit PDF coursework, and see faculty review results.
+- Students can register, sign in, update their profile, read and create posts, comment/vote where permitted, browse persisted events/clubs/notices, apply to clubs, track decisions, view class assignments and timetables, submit PDF coursework, and see faculty review results.
 - Faculty can see their linked timetable and syllabus, open attendance from a scheduled lecture, create class-scoped assignments, review embedded PDF submissions, request revisions, approve work, and grade with feedback.
 - Administrators can manage students, faculty, clubs, events, and notices. Staff roles are assigned by provisioning and cannot be self-selected during public signup.
 - Logout clears local session state. A rejected/expired token clears the client session and returns protected routes to sign-in.
 
-Some unrelated prototype pages for elections and teams still contain demo data and are not represented as persisted workflows.
+Some unrelated prototype pages for elections and teams still contain demo data and are not represented as persisted workflows. Club applications, membership, leadership decisions, and application notifications are stored in the database. Reapplication is allowed after withdrawing a pending application; a rejected application is final. Club leaders remain ordinary student accounts and can manage applications only for clubs assigned to them. Club announcements and activity publishing do not yet have backend records.
 
 ### Demo academic structure and attendance
 
 The backend seeds repeatable demo records for IT, CE, ECS, and ME, with FE and SE classes, Division A, Batch A1, semester subjects, faculty profiles, Monday lecture slots, and enrolled demo students. Demo department labels are explicitly marked in the UI and can be configured with CAMPUS_DEMO_DEPARTMENT_IT, CAMPUS_DEMO_DEPARTMENT_CE, CAMPUS_DEMO_DEPARTMENT_ECS, and CAMPUS_DEMO_DEPARTMENT_ME (Spring property equivalents are campus.demo.department.*). Seed rows are inserted only when their stable identifiers are absent.
 
 To exercise faculty attendance, provision a faculty account with DEMO_ACCOUNTS_ENABLED=true and set DEMO_FACULTY_EMAIL, DEMO_FACULTY_PASSWORD, and optionally DEMO_FACULTY_NAME; that account is assigned the demo IT classes. New student accounts that select a seeded department, year, division, and batch are enrolled in the matching demo class. Faculty endpoints are under /api/faculty/attendance; the signed-in student's persisted summary is GET /api/student/attendance. Demo names, timetable, subjects, and departments are illustrative configuration, not verified institutional records.
+
+The backend seeds five clearly labeled illustrative clubs and assigns leaders from the seeded FE/SE student accounts across IT, CE, ECS, and ME. Set `DEMO_CLUB_LEADER_PASSWORD` to an 8-character-or-longer value to enable login for those seeded student leader accounts when they do not already have a password. The same configured value is applied to the seeded leaders; do not use it outside a local demo. Admins can assign another registered student as a club leader from Club Management.
 
 ### Assignment PDF storage
 

@@ -28,6 +28,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
+        "app.assignment.storage-dir=${java.io.tmpdir}/campus-connect-test-uploads",
         "DEMO_ACCOUNTS_ENABLED=true",
         "DEMO_ADMIN_EMAIL=integration.admin@tsdcem.ac.in",
         "DEMO_ADMIN_PASSWORD=IntegrationDemo123",
@@ -49,6 +50,8 @@ class AuthSecurityIntegrationTest {
     @Autowired FacultyProfileRepository facultyProfileRepository;
     @Autowired com.repository.AssignmentRepository assignments;
     @Autowired com.service.AssignmentFileStorage assignmentFileStorage;
+    @Autowired ClubRepository clubRepository;
+    @Autowired ClubMembershipRepository clubMembershipRepository;
     @Autowired TeachingAssignmentRepository assignmentRepository;
 
     @Test
@@ -214,6 +217,89 @@ class AuthSecurityIntegrationTest {
         assertEquals(2, ownSubmission.path("currentVersion").asInt());
         assertEquals(2, ownSubmission.path("versions").size());
         assertEquals("integration.faculty@tsdcem.ac.in", ownSubmission.path("reviewerEmail").asText());
+    }
+
+    @Test
+    void clubApplicationsAreScopedReviewedAndBecomeMemberships() throws Exception {
+        String leaderEmail="club.leader."+UUID.randomUUID()+"@tsdcem.ac.in";
+        String leaderAuth=mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Club Leader\",\"email\":\""+leaderEmail+"\",\"password\":\"CampusDemo123\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String leaderToken=objectMapper.readTree(leaderAuth).path("token").asText();
+        assertEquals("STUDENT",objectMapper.readTree(leaderAuth).path("user").path("role").asText());
+        String applicantEmail="club.applicant."+UUID.randomUUID()+"@tsdcem.ac.in";
+        String applicantAuth=mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Club Applicant\",\"email\":\""+applicantEmail+"\",\"password\":\"CampusDemo123\",\"department\":\"IT\",\"year\":\"FE\",\"division\":\"A\",\"batch\":\"A1\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String applicantToken=objectMapper.readTree(applicantAuth).path("token").asText();
+        String adminAuth=mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"integration.admin@tsdcem.ac.in\",\"password\":\"IntegrationDemo123\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String adminToken=objectMapper.readTree(adminAuth).path("token").asText();
+        String created=mvc.perform(post("/api/clubs").header("Authorization","Bearer "+adminToken).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"name\":\"Test Demo Club\",\"category\":\"Technical\",\"description\":\"Test description\",\"activities\":\"Peer learning\",\"eligibility\":\"Open to students\",\"department\":\"IT\",\"leaderEmail\":\""+leaderEmail+"\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long clubId=objectMapper.readTree(created).path("id").asLong();
+        assertTrue(objectMapper.readTree(mvc.perform(get("/api/clubs").header("Authorization","Bearer "+applicantToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).size()>0);
+        mvc.perform(post("/api/student/clubs/"+clubId+"/applications").header("Authorization","Bearer "+applicantToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"motivation\":\"I enjoy collaborative projects.\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/student/clubs/"+clubId+"/applications").header("Authorization","Bearer "+applicantToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{}" )).andExpect(status().isConflict());
+        JsonNode ownApps=objectMapper.readTree(mvc.perform(get("/api/student/clubs/applications").header("Authorization","Bearer "+applicantToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(1,ownApps.size());long appId=ownApps.get(0).path("id").asLong();
+        mvc.perform(put("/api/student/clubs/leader/applications/"+appId).header("Authorization","Bearer "+applicantToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"APPROVED\"}")).andExpect(status().isNotFound());
+        String facultyAuth=mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"integration.faculty@tsdcem.ac.in\",\"password\":\"IntegrationDemo123\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        mvc.perform(put("/api/student/clubs/leader/applications/"+appId).header("Authorization","Bearer "+objectMapper.readTree(facultyAuth).path("token").asText())
+                .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"APPROVED\"}")).andExpect(status().isForbidden());
+        long otherClubId=clubRepository.findByDemoKey("demo-coding").orElseThrow().getId();
+        mvc.perform(get("/api/student/clubs/leader/"+otherClubId+"/applications").header("Authorization","Bearer "+leaderToken)).andExpect(status().isNotFound());
+        JsonNode leaderClubs=objectMapper.readTree(mvc.perform(get("/api/student/clubs/leader").header("Authorization","Bearer "+leaderToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());assertEquals(1,leaderClubs.size());
+        mvc.perform(get("/api/student/clubs/leader/"+clubId+"/applications").param("status","PENDING").header("Authorization","Bearer "+leaderToken))
+                .andExpect(status().isOk());
+        mvc.perform(put("/api/student/clubs/leader/applications/"+appId).header("Authorization","Bearer "+leaderToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"APPROVED\",\"decisionNote\":\"Welcome to the club.\"}"))
+                .andExpect(status().isOk());
+        Student applicant=studentRepository.findByEmailIgnoreCase(applicantEmail).orElseThrow();
+        assertTrue(clubMembershipRepository.existsByClubIdAndStudentIdAndActiveTrue(clubId,applicant.getId()));
+        JsonNode clubDetail=objectMapper.readTree(mvc.perform(get("/api/clubs/"+clubId).header("Authorization","Bearer "+applicantToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertTrue(clubDetail.path("isMember").asBoolean());assertEquals("APPROVED",clubDetail.path("latestApplicationStatus").asText());
+        JsonNode notices=objectMapper.readTree(mvc.perform(get("/api/student/notifications").header("Authorization","Bearer "+applicantToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());assertEquals(1,notices.size());
+        mvc.perform(put("/api/student/notifications/"+notices.get(0).path("id").asLong()+"/read").header("Authorization","Bearer "+applicantToken))
+                .andExpect(status().isOk());
+        String relogin=mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\""+applicantEmail+"\",\"password\":\"CampusDemo123\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        JsonNode afterLogin=objectMapper.readTree(mvc.perform(get("/api/student/clubs/applications").header("Authorization","Bearer "+objectMapper.readTree(relogin).path("token").asText()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals("APPROVED",afterLogin.get(0).path("status").asText());assertEquals("Club Leader",afterLogin.get(0).path("decidedByName").asText());
+
+        String secondEmail="club.withdraw."+UUID.randomUUID()+"@tsdcem.ac.in";
+        String secondAuth=mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).content("{\"name\":\"Withdraw Student\",\"email\":\""+secondEmail+"\",\"password\":\"CampusDemo123\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();String secondToken=objectMapper.readTree(secondAuth).path("token").asText();
+        assertEquals(0,objectMapper.readTree(mvc.perform(get("/api/student/clubs/applications").header("Authorization","Bearer "+secondToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).size());
+        JsonNode withdrawn=objectMapper.readTree(mvc.perform(post("/api/student/clubs/"+clubId+"/applications").header("Authorization","Bearer "+secondToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{}" )).andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        long withdrawnId=withdrawn.path("id").asLong();
+        mvc.perform(delete("/api/student/clubs/applications/"+withdrawnId).header("Authorization","Bearer "+secondToken)).andExpect(status().isOk());
+        mvc.perform(post("/api/student/clubs/"+clubId+"/applications").header("Authorization","Bearer "+secondToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{}" )).andExpect(status().isOk());
+        JsonNode secondHistory=objectMapper.readTree(mvc.perform(get("/api/student/clubs/applications").header("Authorization","Bearer "+secondToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());long reapplicationId=secondHistory.get(0).path("id").asLong();
+        mvc.perform(put("/api/student/clubs/leader/applications/"+reapplicationId).header("Authorization","Bearer "+leaderToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"status\":\"REJECTED\",\"decisionNote\":\"This demo club has reached its review limit.\"}"))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/student/clubs/"+clubId+"/applications").header("Authorization","Bearer "+secondToken)
+                .contentType(MediaType.APPLICATION_JSON).content("{}" )).andExpect(status().isConflict());
     }
 
     @Test
