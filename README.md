@@ -77,6 +77,12 @@ Vite runs at <http://localhost:3000> and calls the API at `http://localhost:8080
 
 Some older prototype pages for attendance, elections, teams, and submissions still contain demo data and are not represented as persisted workflows.
 
+### Demo academic structure and attendance
+
+The backend seeds repeatable demo records for IT, CE, ECS, and ME, with FE and SE classes, Division A, Batch A1, semester subjects, faculty profiles, Monday lecture slots, and enrolled demo students. Demo department labels are explicitly marked in the UI and can be configured with CAMPUS_DEMO_DEPARTMENT_IT, CAMPUS_DEMO_DEPARTMENT_CE, CAMPUS_DEMO_DEPARTMENT_ECS, and CAMPUS_DEMO_DEPARTMENT_ME (Spring property equivalents are campus.demo.department.*). Seed rows are inserted only when their stable identifiers are absent.
+
+To exercise faculty attendance, provision a faculty account with DEMO_ACCOUNTS_ENABLED=true and set DEMO_FACULTY_EMAIL, DEMO_FACULTY_PASSWORD, and optionally DEMO_FACULTY_NAME; that account is assigned the demo IT classes. New student accounts that select a seeded department, year, division, and batch are enrolled in the matching demo class. Faculty endpoints are under /api/faculty/attendance; the signed-in student's persisted summary is GET /api/student/attendance. Demo names, timetable, subjects, and departments are illustrative configuration, not verified institutional records.
+
 ## API examples
 
 ```bash

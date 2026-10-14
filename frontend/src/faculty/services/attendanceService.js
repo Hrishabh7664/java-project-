@@ -1,30 +1,22 @@
 import api from '../../services/api';
-import { mockAttendanceRecordsFaculty } from '../mock/mockAttendance';
-
-let attendanceStore = [...mockAttendanceRecordsFaculty];
 
 export const attendanceService = {
-  async getAttendanceHistory() {
-    return Promise.resolve(attendanceStore);
+  async getOptions() {
+    const response = await api.get('/faculty/attendance/options');
+    return response.data;
   },
-
-  async saveAttendance(data) {
-    const present = Object.values(data.attendanceMap).filter(v => v === 'Present').length;
-    const total = Object.keys(data.attendanceMap).length;
-    const absent = total - present;
-    const pct = total > 0 ? ((present / total) * 100).toFixed(1) : 0;
-
-    const newRecord = {
-      id: `att-${Date.now()}`,
-      date: data.date,
-      subject: data.subject,
-      class: data.targetClass,
-      presentCount: present,
-      absentCount: absent,
-      totalCount: total,
-      percentage: Number(pct)
-    };
-    attendanceStore.unshift(newRecord);
-    return Promise.resolve(newRecord);
+  async getRoster(assignmentId, date) {
+    const response = await api.get('/faculty/attendance/roster', { params: { assignmentId, date } });
+    return response.data;
+  },
+  async getAttendanceHistory() {
+    const response = await api.get('/faculty/attendance/sessions');
+    return response.data;
+  },
+  async saveAttendance(data, sessionId) {
+    const response = sessionId
+      ? await api.put(`/faculty/attendance/sessions/${sessionId}`, data)
+      : await api.post('/faculty/attendance/sessions', data);
+    return response.data;
   }
 };

@@ -7,7 +7,7 @@ import { apiErrorMessage } from '../../services/api';
 export const RegisterCard = () => {
   const { register } = useAuth();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: '', email: '', password: '', department: '', year: '', division: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', department: '', year: '', division: '', batch: 'A1' });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const update = (event) => setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
@@ -51,15 +51,24 @@ export const RegisterCard = () => {
         <div className="auth-form-grid">
           <div className="form-group">
             <label className="form-label" htmlFor="department">Department</label>
-            <input className="form-input" id="department" name="department" placeholder="IT" value={form.department} onChange={update} />
+            <select className="form-input" id="department" name="department" value={form.department} onChange={update} required>
+              <option value="">Select</option><option value="IT">Information Technology (Demo)</option><option value="CE">Computer Engineering (Demo)</option><option value="ECS">Electronics and Computer Science (Demo)</option><option value="ME">Mechanical Engineering (Demo)</option>
+            </select>
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="year">Year</label>
-            <input className="form-input" id="year" name="year" placeholder="First Year" value={form.year} onChange={update} />
+            <select className="form-input" id="year" name="year" value={form.year} onChange={update} required>
+              <option value="">Select</option><option value="FE">First Year Engineering (FE)</option><option value="SE">Second Year Engineering (SE)</option>
+            </select>
           </div>
           <div className="form-group">
             <label className="form-label" htmlFor="division">Division</label>
-            <input className="form-input" id="division" name="division" placeholder="A" value={form.division} onChange={update} maxLength="10" />
+            <select className="form-input" id="division" name="division" value={form.division} onChange={update} required>
+              <option value="">Select</option><option value="A">Division A (Demo)</option>
+            </select>
+          </div>
+          <div className="form-group"><label className="form-label" htmlFor="batch">Practical batch</label>
+            <select className="form-input" id="batch" name="batch" value={form.batch} onChange={update} required><option value="A1">Batch A1 (Demo)</option></select>
           </div>
         </div>
         {error && <div className="validation-error" role="alert">{error}</div>}

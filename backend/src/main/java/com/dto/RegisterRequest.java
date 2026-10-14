@@ -10,4 +10,5 @@ public record RegisterRequest(
         @NotBlank @Size(min = 8, max = 72) String password,
         @Size(max = 80) String department,
         @Size(max = 40) String year,
-        @Size(max = 10) String division) { }
+        @Size(max = 10) String division,
+        @Size(max = 20) String batch) { }

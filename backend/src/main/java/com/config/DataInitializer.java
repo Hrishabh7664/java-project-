@@ -79,14 +79,7 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void seedStudents() {
-        if (studentRepository.count() == 0) {
-            studentRepository.saveAll(List.of(
-                    new Student("Anurag Yadav", "anurag.yadav@campusconnect.edu", "IT", "Second Year", "C", "IT Student & Lead Developer"),
-                    new Student("Atul Tiwari", "atul.tiwari@campusconnect.edu", "CE", "Second Year", "A", "Computer Engineering Student"),
-                    new Student("Hrishabh Soni", "hrishabh.soni@campusconnect.edu", "AIDS", "Second Year", "B", "AI & Data Science Enthusiast"),
-                    new Student("Priya Sharma", "priya.sharma@campusconnect.edu", "ECS", "First Year", "A", "ECS Student")
-            ));
-        }
+        // Linked FE/SE demo student rows are seeded by AcademicDataInitializer.
     }
 
     private void seedClubs() {

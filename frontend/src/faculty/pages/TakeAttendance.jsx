@@ -1,118 +1,101 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { classService } from '../services/classService';
-import { attendanceService } from '../services/attendanceService';
 import { ArrowLeft, CheckCircle2, UserCheck } from 'lucide-react';
+import { attendanceService } from '../services/attendanceService';
+import { apiErrorMessage } from '../../services/api';
+
+const nextMonday = () => {
+  const date = new Date();
+  const day = date.getDay();
+  date.setDate(date.getDate() + ((8 - day) % 7));
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+};
 
 export const TakeAttendance = () => {
   const navigate = useNavigate();
-  const [students, setStudents] = useState([]);
-  const [subject, setSubject] = useState('Java Programming (IT302)');
-  const [targetClass, setTargetClass] = useState('SE IT Division A');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-  const [attendanceMap, setAttendanceMap] = useState({});
-  const [savedMsg, setSavedMsg] = useState('');
+  const [options, setOptions] = useState([]);
+  const [assignmentId, setAssignmentId] = useState('');
+  const [date, setDate] = useState(nextMonday);
+  const [roster, setRoster] = useState(null);
+  const [marks, setMarks] = useState({});
+  const [loadingOptions, setLoadingOptions] = useState(true);
+  const [loadingRoster, setLoadingRoster] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
-    async function load() {
-      const st = await classService.getClassStudents('cls-1');
-      setStudents(st);
-      const initialMap = {};
-      st.forEach(student => { initialMap[student.id] = 'Present'; });
-      setAttendanceMap(initialMap);
-    }
-    load();
+    attendanceService.getOptions().then((data) => {
+      setOptions(data);
+      if (data.length) setAssignmentId(String(data[0].id));
+    }).catch((err) => setError(apiErrorMessage(err, 'Assigned classes could not be loaded.')))
+      .finally(() => setLoadingOptions(false));
   }, []);
 
-  const toggleStudent = (id) => {
-    setAttendanceMap(prev => ({
-      ...prev,
-      [id]: prev[id] === 'Present' ? 'Absent' : 'Present'
-    }));
+  const loadRoster = useCallback(async () => {
+    if (!assignmentId || !date) { setRoster(null); return; }
+    setLoadingRoster(true); setError(''); setMessage('');
+    try {
+      const data = await attendanceService.getRoster(assignmentId, date);
+      setRoster(data);
+      setMarks(Object.fromEntries(data.students.map((student) => [student.id, student.present ?? true])));
+    } catch (err) {
+      setRoster(null);
+      setError(apiErrorMessage(err, 'The roster could not be loaded.'));
+    } finally { setLoadingRoster(false); }
+  }, [assignmentId, date]);
+
+  useEffect(() => { loadRoster(); }, [loadRoster]);
+
+  const selected = options.find((option) => String(option.id) === assignmentId);
+  const toggle = (studentId) => setMarks((current) => ({ ...current, [studentId]: !current[studentId] }));
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!roster?.students.length) return;
+    setSaving(true); setError(''); setMessage('');
+    try {
+      const saved = await attendanceService.saveAttendance({
+        assignmentId: Number(assignmentId), date,
+        attendance: roster.students.map((student) => ({ studentId: student.id, present: Boolean(marks[student.id]) }))
+      }, roster.sessionId);
+      setMessage(roster.sessionId ? 'Attendance correction saved.' : 'Attendance register saved successfully.');
+      setRoster((current) => ({ ...current, sessionId: saved.id, students: saved.attendance }));
+      setMarks(Object.fromEntries(saved.attendance.map((student) => [student.id, student.present])));
+    } catch (err) { setError(apiErrorMessage(err, 'Attendance could not be saved. Please review and try again.')); }
+    finally { setSaving(false); }
   };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    await attendanceService.saveAttendance({ date, subject, targetClass, attendanceMap });
-    setSavedMsg('Attendance register recorded successfully!');
-    setTimeout(() => navigate('/faculty/attendance'), 1200);
-  };
-
-  return (
-    <div>
-      <button className="btn btn-outline" style={{ marginBottom: '1.25rem' }} onClick={() => navigate('/faculty/attendance')}>
-        <ArrowLeft size={16} /> Back to Attendance Portal
-      </button>
-
-      {savedMsg && (
-        <div style={{ background: '#dcfce7', padding: '1rem', borderRadius: 'var(--radius-md)', color: '#15803d', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <CheckCircle2 size={18} /> {savedMsg}
-        </div>
-      )}
-
-      <div className="student-card" style={{ marginBottom: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.4rem', color: 'var(--primary-dark)', marginBottom: '1.25rem' }}>Take Attendance Register</h2>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-          <div className="form-group">
-            <label className="form-label">Subject</label>
-            <select className="form-input" value={subject} onChange={(e) => setSubject(e.target.value)}>
-              <option value="Java Programming (IT302)">Java Programming (IT302)</option>
-              <option value="Distributed Systems (IT401)">Distributed Systems (IT401)</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Target Class / Division</label>
-            <select className="form-input" value={targetClass} onChange={(e) => setTargetClass(e.target.value)}>
-              <option value="SE IT Division A">SE IT Division A</option>
-              <option value="BE IT Division B">BE IT Division B</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Date</label>
-            <input type="date" className="form-input" value={date} onChange={(e) => setDate(e.target.value)} required />
-          </div>
-        </div>
-      </div>
-
-      <form onSubmit={handleSave}>
-        <div className="admin-table-container" style={{ marginBottom: '1.5rem' }}>
-          <table className="attendance-register-table">
-            <thead>
-              <tr>
-                <th>Roll No</th>
-                <th>Student Name</th>
-                <th>College Email</th>
-                <th>Attendance Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map(s => (
-                <tr key={s.id}>
-                  <td style={{ fontFamily: 'monospace', fontWeight: '600' }}>{s.rollNo}</td>
-                  <td style={{ fontWeight: '600' }}>{s.name}</td>
-                  <td>{s.email}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className={`attendance-toggle-btn ${attendanceMap[s.id] === 'Present' ? 'btn-present' : 'btn-absent'}`}
-                      onClick={() => toggleStudent(s.id)}
-                    >
-                      {attendanceMap[s.id] || 'Present'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <button type="submit" className="btn btn-primary" style={{ padding: '0.85rem 2rem' }}>
-          <UserCheck size={18} /> Save & Submit Register
-        </button>
-      </form>
-    </div>
-  );
+  return <div>
+    <button className="btn btn-outline" style={{ marginBottom: '1.25rem' }} onClick={() => navigate('/faculty/attendance')}><ArrowLeft size={16} /> Back to Attendance Portal</button>
+    <div className="student-page-header"><div className="student-page-title"><h1>Take Attendance</h1><p>Select an assigned class, date and scheduled lecture, then review the register before saving.</p></div></div>
+    {error && <div className="student-card" role="alert" style={{ marginBottom: '1rem' }}>{error}</div>}
+    {message && <div className="student-card" role="status" style={{ marginBottom: '1rem', color: 'var(--success)' }}><CheckCircle2 size={18} /> {message}</div>}
+    {loadingOptions ? <div className="student-card" role="status">Loading assigned classes…</div> : !options.length ? <div className="student-card">No classes are assigned to this faculty account.</div> : <>
+      <section className="student-card" style={{ marginBottom: '1.25rem', display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '1rem' }}>
+        <div className="form-group"><label className="form-label" htmlFor="attendance-assignment">Assigned subject and class</label>
+          <select id="attendance-assignment" className="form-input" value={assignmentId} onChange={(e) => setAssignmentId(e.target.value)}>
+            {options.map((o) => <option key={o.id} value={o.id}>{o.subjectCode} · {o.subjectName} — {o.departmentCode} {o.academicYear} Div {o.division} Batch {o.batch} · {o.dayOfWeek} {o.startTime}–{o.endTime}</option>)}
+          </select></div>
+        <div className="form-group"><label className="form-label" htmlFor="attendance-date">Lecture date (scheduled {selected?.dayOfWeek})</label>
+          <input id="attendance-date" type="date" className="form-input" value={date} onChange={(e) => setDate(e.target.value)} required /></div>
+      </section>
+      {loadingRoster ? <div className="student-card" role="status">Loading class roster…</div> : roster && <>
+        {roster.sessionId && <p className="student-card" role="status">A register exists for this lecture. Changes will be recorded in the attendance history.</p>}
+        {!roster.students.length ? <div className="student-card">No students are assigned to this class and batch.</div> : <form onSubmit={submit}>
+          <div className="admin-table-container" style={{ marginBottom: '1rem' }}><table className="attendance-register-table">
+            <thead><tr><th>Student</th><th>College email</th><th>Department / Year</th><th>Review status</th></tr></thead>
+            <tbody>{roster.students.map((student) => <tr key={student.id}>
+              <td style={{ fontWeight: 600 }}>{student.name}</td><td>{student.email}</td>
+              <td>{student.department} · {student.academicYear} Div {student.division} Batch {student.batch}</td>
+              <td><button type="button" aria-pressed={Boolean(marks[student.id])}
+                className={`attendance-toggle-btn ${marks[student.id] ? 'btn-present' : 'btn-absent'}`}
+                onClick={() => toggle(student.id)}>{marks[student.id] ? 'Present' : 'Absent'}</button></td>
+            </tr>)}</tbody>
+          </table></div>
+          <p>Review: {Object.values(marks).filter(Boolean).length} present · {Object.values(marks).filter((v) => !v).length} absent · {roster.students.length} students</p>
+          <button type="submit" className="btn btn-primary" disabled={saving}><UserCheck size={18} /> {saving ? 'Saving…' : roster.sessionId ? 'Save correction' : 'Save attendance register'}</button>
+        </form>}
+      </>}
+    </>}
+  </div>;
 };

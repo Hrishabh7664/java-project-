@@ -47,6 +47,7 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/health", "/api/auth/login", "/api/auth/register", "/error").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/faculty/**").hasAnyRole("FACULTY", "ADMIN")
+                        .requestMatchers("/api/student/**").hasRole("STUDENT")
                         .requestMatchers(HttpMethod.GET, "/api/students").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/assignments/**").hasAnyRole("FACULTY", "ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/assignments/**").hasAnyRole("FACULTY", "ADMIN")

@@ -8,6 +8,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import com.entity.*;
+import com.repository.*;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 import java.util.UUID;
 
@@ -29,6 +36,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AuthSecurityIntegrationTest {
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper objectMapper;
+    @Autowired StudentRepository studentRepository;
+    @Autowired DepartmentRepository departmentRepository;
+    @Autowired AcademicClassRepository academicClassRepository;
+    @Autowired TeachingAssignmentRepository teachingAssignmentRepository;
+    @Autowired AttendanceRecordRepository attendanceRecordRepository;
+    @Autowired AttendanceChangeRepository attendanceChangeRepository;
+    @Autowired AttendanceSessionRepository attendanceSessionRepository;
+    @Autowired StudentEnrollmentRepository studentEnrollmentRepository;
+    @Autowired TeachingAssignmentRepository assignmentRepository;
 
     @Test
     void registrationLoginAndProtectedApiWork() throws Exception {
@@ -179,5 +195,130 @@ class AuthSecurityIntegrationTest {
         assertEquals(0, objectMapper.readTree(mvc.perform(get("/api/events/registrations/me")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString()).size());
+    }
+
+    @Test
+    void connectedAcademicDemoAndAttendanceWorkflowEnforceOwnership() throws Exception {
+        assertEquals(4, departmentRepository.count());
+        assertEquals(8, academicClassRepository.count());
+        assertEquals(16, teachingAssignmentRepository.count());
+
+        String facultyLogin = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"integration.faculty@tsdcem.ac.in\",\"password\":\"IntegrationDemo123\"}"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        String facultyToken = objectMapper.readTree(facultyLogin).path("token").asText();
+        JsonNode options = objectMapper.readTree(mvc.perform(get("/api/faculty/attendance/options")
+                        .header("Authorization", "Bearer " + facultyToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertTrue(options.size() > 0);
+        for (JsonNode option : options) assertEquals("IT", option.path("departmentCode").asText());
+
+        long unauthorizedAssignmentId = teachingAssignmentRepository.findAll().stream()
+                .filter(a -> a.getAcademicClass().getDepartment().getCode().equals("CE"))
+                .findFirst().orElseThrow().getId();
+        LocalDate lectureDate = nextMonday();
+        mvc.perform(get("/api/faculty/attendance/roster").param("assignmentId", String.valueOf(unauthorizedAssignmentId))
+                        .param("date", lectureDate.toString()).header("Authorization", "Bearer " + facultyToken))
+                .andExpect(status().isForbidden());
+
+        JsonNode option = options.get(0);
+        long assignmentId = option.path("id").asLong();
+        String email = "attendance." + UUID.randomUUID() + "@tsdcem.ac.in";
+        String studentAuth = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Attendance Test Student\",\"email\":\"" + email + "\",\"password\":\"CampusDemo123\",\"department\":\"IT\",\"year\":\"FE\",\"division\":\"A\",\"batch\":\"A1\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String studentToken = objectMapper.readTree(studentAuth).path("token").asText();
+        Student testStudent = studentRepository.findByEmailIgnoreCase(email).orElseThrow();
+        testStudent.setDepartment("IT"); testStudent.setYear("FE"); testStudent.setDivision("A"); testStudent.setBatch("A1");
+        studentRepository.save(testStudent);
+        assertTrue(studentEnrollmentRepository.existsByStudentIdAndAcademicClassId(
+                testStudent.getId(), assignmentRepository.findById(assignmentId).orElseThrow().getAcademicClass().getId()));
+
+        mvc.perform(get("/api/faculty/attendance/roster").param("assignmentId", String.valueOf(assignmentId))
+                        .param("date", lectureDate.toString()).header("Authorization", "Bearer " + facultyToken))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/faculty/attendance/roster").param("assignmentId", String.valueOf(assignmentId))
+                        .param("date", lectureDate.plusDays(1).toString()).header("Authorization", "Bearer " + facultyToken))
+                .andExpect(status().isBadRequest());
+        JsonNode roster = objectMapper.readTree(mvc.perform(get("/api/faculty/attendance/roster")
+                        .param("assignmentId", String.valueOf(assignmentId)).param("date", lectureDate.toString())
+                        .header("Authorization", "Bearer " + facultyToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertTrue(roster.path("students").size() >= 3);
+
+        mvc.perform(post("/api/faculty/attendance/sessions").header("Authorization", "Bearer " + facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"assignmentId\":" + assignmentId + ",\"date\":\"" + lectureDate + "\"}"))
+                .andExpect(status().isBadRequest());
+        String incomplete = objectMapper.writeValueAsString(Map.of("assignmentId", assignmentId, "date", lectureDate.toString(),
+                "attendance", List.of(Map.of("studentId", roster.path("students").get(0).path("id").asLong(), "present", true))));
+        mvc.perform(post("/api/faculty/attendance/sessions").header("Authorization", "Bearer " + facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(incomplete))
+                .andExpect(status().isBadRequest());
+        String outsideClass = objectMapper.writeValueAsString(Map.of("assignmentId", assignmentId, "date", lectureDate.toString(),
+                "attendance", List.of(Map.of("studentId", 99999999L, "present", true))));
+        mvc.perform(post("/api/faculty/attendance/sessions").header("Authorization", "Bearer " + facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(outsideClass))
+                .andExpect(status().isForbidden());
+        JsonNode marks = attendanceMarks(roster, true);
+        String request = objectMapper.writeValueAsString(Map.of("assignmentId", assignmentId, "date", lectureDate.toString(), "attendance", marks));
+        String saved = mvc.perform(post("/api/faculty/attendance/sessions").header("Authorization", "Bearer " + facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        long sessionId = objectMapper.readTree(saved).path("id").asLong();
+        assertEquals(roster.path("students").size(), objectMapper.readTree(saved).path("totalCount").asInt());
+        mvc.perform(post("/api/faculty/attendance/sessions").header("Authorization", "Bearer " + facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isConflict());
+
+        JsonNode correctedMarks = attendanceMarks(roster, false);
+        String correction = objectMapper.writeValueAsString(Map.of("assignmentId", assignmentId, "date", lectureDate.toString(), "attendance", correctedMarks));
+        mvc.perform(put("/api/faculty/attendance/sessions/" + sessionId).header("Authorization", "Bearer " + facultyToken)
+                        .contentType(MediaType.APPLICATION_JSON).content(correction))
+                .andExpect(status().isOk());
+        assertTrue(attendanceChangeRepository.count() > 0);
+
+        JsonNode own = objectMapper.readTree(mvc.perform(get("/api/student/attendance").header("Authorization", "Bearer " + studentToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(1, own.path("classesHeld").asInt());
+        assertEquals(0, own.path("classesAttended").asInt());
+        assertEquals(1, own.path("classesMissed").asInt());
+        assertEquals(0.0, own.path("overallPercentage").asDouble());
+        assertEquals(1, own.path("sessions").size());
+        JsonNode savedHistory = objectMapper.readTree(mvc.perform(get("/api/faculty/attendance/sessions")
+                        .header("Authorization", "Bearer " + facultyToken))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(1, savedHistory.size());
+        assertEquals(0, savedHistory.get(0).path("presentCount").asInt());
+        assertEquals(1, attendanceSessionRepository.count());
+        assertTrue(attendanceRecordRepository.count() >= 3);
+        mvc.perform(get("/api/student/attendance").header("Authorization", "Bearer " + facultyToken))
+                .andExpect(status().isForbidden());
+
+        String anotherEmail = "attendance.other." + UUID.randomUUID() + "@tsdcem.ac.in";
+        String anotherAuth = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Another Student\",\"email\":\"" + anotherEmail + "\",\"password\":\"CampusDemo123\"}"))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        JsonNode another = objectMapper.readTree(mvc.perform(get("/api/student/attendance")
+                        .header("Authorization", "Bearer " + objectMapper.readTree(anotherAuth).path("token").asText()))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString());
+        assertEquals(0, another.path("classesHeld").asInt());
+    }
+
+    private LocalDate nextMonday() {
+        LocalDate today = LocalDate.now();
+        return today.plusDays((8 - today.getDayOfWeek().getValue()) % 7);
+    }
+
+    private JsonNode attendanceMarks(JsonNode roster, boolean present) {
+        var marks = new ArrayList<Map<String, Object>>();
+        for (JsonNode student : roster.path("students")) {
+            Map<String, Object> mark = new LinkedHashMap<>();
+            mark.put("studentId", student.path("id").asLong());
+            mark.put("present", present);
+            marks.add(mark);
+        }
+        try { return objectMapper.valueToTree(marks); }
+        catch (IllegalArgumentException exception) { throw new AssertionError(exception); }
     }
 }

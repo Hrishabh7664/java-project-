@@ -30,6 +30,7 @@ public class Student {
     @Column(name = "`year`")
     private String year;
     private String division;
+    private String batch;
 
     @Column(columnDefinition = "TEXT")
     private String bio;
@@ -98,6 +99,8 @@ public class Student {
     public void setDivision(String division) {
         this.division = division;
     }
+    public String getBatch() { return batch; }
+    public void setBatch(String batch) { this.batch = batch; }
 
     public String getBio() {
         return bio;
