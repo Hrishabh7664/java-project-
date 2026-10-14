@@ -11,6 +11,8 @@ import org.mockito.MockitoAnnotations;
 
 import java.util.List;
 import java.util.Optional;
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -121,5 +123,25 @@ class CampusConnectApplicationTest {
         notice.setId(8L);
         when(noticeRepository.findAll()).thenReturn(List.of(notice));
         assertEquals(1, noticeService.getAllNotices().size());
+    }
+
+    @Test
+    void healthReportsTheConnectedDatabaseAndUnavailableConnections() throws Exception {
+        var dataSource = mock(javax.sql.DataSource.class);
+        var connection = mock(Connection.class);
+        var metadata = mock(DatabaseMetaData.class);
+        when(dataSource.getConnection()).thenReturn(connection);
+        when(connection.getMetaData()).thenReturn(metadata);
+        when(metadata.getDatabaseProductName()).thenReturn("H2");
+
+        var healthy = new com.controller.HealthController(dataSource).healthCheck();
+        assertEquals(200, healthy.getStatusCode().value());
+        assertEquals("H2", healthy.getBody().get("database"));
+        verify(connection).close();
+
+        when(dataSource.getConnection()).thenThrow(new java.sql.SQLException("offline"));
+        var unavailable = new com.controller.HealthController(dataSource).healthCheck();
+        assertEquals(503, unavailable.getStatusCode().value());
+        assertEquals("DOWN", unavailable.getBody().get("status"));
     }
 }
