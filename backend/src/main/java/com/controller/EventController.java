@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.net.URI;
 import java.util.List;
 import com.dto.EventRegistrationResponse;
+import com.dto.EventRegistrantResponse;
 import org.springframework.security.core.Authentication;
 
 @RestController
@@ -39,6 +40,11 @@ public class EventController {
 
     @GetMapping("/{id}/registrations/count")
     public long registrationCount(@PathVariable Long id) { return eventService.registrationCount(id); }
+
+    @GetMapping("/{id}/registrations")
+    public List<EventRegistrantResponse> getRegistrants(@PathVariable Long id) {
+        return eventService.getRegistrants(id);
+    }
 
     @PostMapping("/{id}/registrations")
     public ResponseEntity<EventRegistrationResponse> register(@PathVariable Long id, Authentication authentication) {

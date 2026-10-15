@@ -5,7 +5,16 @@ const mapEvent = (event) => ({ ...event, venue: event.location, registrationsCou
 export const eventManagementService = {
   async getEvents() {
     const response = await api.get('/events');
-    return response.data.map(mapEvent);
+    return Promise.all(response.data.map(async (event) => ({
+      ...mapEvent(event),
+      registrationsCount: await this.getRegistrationCount(event.id)
+    })));
+  },
+  async getRegistrationCount(id) {
+    return (await api.get(`/events/${id}/registrations/count`)).data;
+  },
+  async getRegistrants(id) {
+    return (await api.get(`/events/${id}/registrations`)).data;
   },
   async createEvent(data) {
     const response = await api.post('/events', {

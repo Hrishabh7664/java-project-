@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { eventManagementService } from '../services/eventManagementService';
-import { PlusCircle, Calendar, MapPin } from 'lucide-react';
+import { PlusCircle, Users, X } from 'lucide-react';
 
 export const ManageEvents = () => {
   const [events, setEvents] = useState([]);
@@ -9,6 +9,10 @@ export const ManageEvents = () => {
   const [organizer, setOrganizer] = useState('College Administration');
   const [date, setDate] = useState('');
   const [venue, setVenue] = useState('');
+  const [registrantEvent, setRegistrantEvent] = useState(null);
+  const [registrants, setRegistrants] = useState([]);
+  const [registrantsLoading, setRegistrantsLoading] = useState(false);
+  const [registrantsError, setRegistrantsError] = useState('');
 
   useEffect(() => {
     async function load() {
@@ -33,6 +37,20 @@ export const ManageEvents = () => {
   const handleDelete = async (id) => {
     await eventManagementService.deleteEvent(id);
     setEvents((items) => items.filter((event) => event.id !== id));
+  };
+
+  const viewRegistrants = async (event) => {
+    setRegistrantEvent(event);
+    setRegistrants([]);
+    setRegistrantsError('');
+    setRegistrantsLoading(true);
+    try {
+      setRegistrants(await eventManagementService.getRegistrants(event.id));
+    } catch (error) {
+      setRegistrantsError(error.response?.data?.message || 'Could not load event registrations.');
+    } finally {
+      setRegistrantsLoading(false);
+    }
   };
 
   return (
@@ -68,7 +86,14 @@ export const ManageEvents = () => {
                 <td>{ev.organizer}</td>
                 <td>{ev.date} ({ev.time})</td>
                 <td>{ev.venue}</td>
-              <td>—</td>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <span>{ev.registrationsCount ?? 0}</span>
+                    <button className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem' }} onClick={() => viewRegistrants(ev)}>
+                      <Users size={14} /> View students
+                    </button>
+                  </div>
+                </td>
               <td><span className="status-badge status-published">{ev.status}</span></td>
                 <td>
                   <button className="btn btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.78rem' }} onClick={() => handleDelete(ev.id)}>
@@ -80,6 +105,29 @@ export const ManageEvents = () => {
           </tbody>
         </table>
       </div>
+
+      {registrantEvent && (
+        <div className="modal-overlay" onClick={() => setRegistrantEvent(null)}>
+          <div className="modal-content-box" style={{ width: 'min(1000px, 94vw)' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+              <div><h3>Event registrations</h3><p style={{ margin: '0.35rem 0 0', color: 'var(--text-secondary)' }}>{registrantEvent.title}</p></div>
+              <button className="btn btn-outline" aria-label="Close registrations" onClick={() => setRegistrantEvent(null)}><X size={18} /></button>
+            </div>
+            {registrantsLoading ? <p>Loading registrations…</p> : registrantsError ? <p role="alert" style={{ color: 'var(--error)' }}>{registrantsError}</p> : registrants.length === 0 ? <p>No students have registered for this event yet.</p> : (
+              <div className="admin-table-container" style={{ marginTop: '1rem' }}>
+                <table className="admin-table">
+                  <thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Department</th><th>Year</th><th>Division</th><th>Registered</th></tr></thead>
+                  <tbody>{registrants.map((student) => <tr key={student.registrationId}>
+                    <td>{student.studentId || '—'}</td><td>{student.name || '—'}</td><td>{student.email || '—'}</td>
+                    <td>{student.department || '—'}</td><td>{student.year || '—'}</td><td>{student.division || '—'}</td>
+                    <td>{student.registeredAt ? new Date(student.registeredAt).toLocaleString() : '—'}</td>
+                  </tr>)}</tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="modal-overlay">

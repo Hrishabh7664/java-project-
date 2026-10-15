@@ -42,7 +42,7 @@ export function apiErrorMessage(error, fallback = 'The request could not be comp
   if (!error.response) return 'Unable to reach Campus Connect. Check that the API is running and try again.';
   if (status === 400 || status === 422) return serverMessage || 'Some information is invalid. Check the form and try again.';
   if (status === 401) return serverMessage || 'Your session has expired. Please sign in again.';
-  if (status === 403) return 'You do not have permission to do that.';
+  if (status === 403) return serverMessage || 'You do not have permission to do that.';
   if (status === 404) return 'That item could not be found.';
   if (status === 409) return serverMessage || 'An account with that email already exists.';
   return serverMessage || fallback;
