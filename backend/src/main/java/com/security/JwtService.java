@@ -17,7 +17,7 @@ public class JwtService {
     private final SecretKey key;
     private final long expirationMillis;
 
-    public JwtService(@Value("${app.jwt.secret}") String secret,
+    public JwtService(@Value("${app.jwt.secret:local-development-only-secret-change-this-before-deployment-1234567890}") String secret,
                       @Value("${app.jwt.expiration-ms:86400000}") long expirationMillis) {
         byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {

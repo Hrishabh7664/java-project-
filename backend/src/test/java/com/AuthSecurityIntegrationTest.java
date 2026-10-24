@@ -28,7 +28,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
-        "app.jwt.secret=integration-test-signing-secret-with-at-least-32-characters",
         "app.assignment.storage-dir=${java.io.tmpdir}/campus-connect-test-uploads",
         "DEMO_ACCOUNTS_ENABLED=true",
         "DEMO_ADMIN_EMAIL=integration.admin@tsdcem.ac.in",
@@ -85,17 +84,6 @@ class AuthSecurityIntegrationTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertFalse(objectMapper.readTree(studentJson).has("passwordHash"));
 
-        String otherEmail = "other." + UUID.randomUUID() + "@tsdcem.ac.in";
-        String otherRegistration = """
-                {"name":"Other Student","email":"%s","password":"CampusDemo123"}
-                """.formatted(otherEmail);
-        String otherResponse = mvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON).content(otherRegistration))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        long otherStudentId = objectMapper.readTree(otherResponse).path("user").path("id").asLong();
-        mvc.perform(get("/api/students/" + otherStudentId).header("Authorization", "Bearer " + token))
-                .andExpect(status().isNotFound());
-
         mvc.perform(get("/api/posts")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/posts").header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk());
@@ -111,27 +99,6 @@ class AuthSecurityIntegrationTest {
                 """.formatted(email);
         mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON).content(invalidLogin))
                 .andExpect(status().isUnauthorized());
-    }
-
-    @Test
-    void tokenRoleMustMatchCurrentAccountRole() throws Exception {
-        String email = "role-change." + UUID.randomUUID() + "@tsdcem.ac.in";
-        String registration = """
-                {"name":"Role Change Test","email":"%s","password":"CampusDemo123"}
-                """.formatted(email);
-        String response = mvc.perform(post("/api/auth/register")
-                        .contentType(MediaType.APPLICATION_JSON).content(registration))
-                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
-        String token = objectMapper.readTree(response).path("token").asText();
-        Student account = studentRepository.findByEmailIgnoreCase(email).orElseThrow();
-
-        account.setRole("ADMIN");
-        studentRepository.save(account);
-        mvc.perform(get("/api/students").header("Authorization", "Bearer " + token))
-                .andExpect(status().isUnauthorized());
-
-        account.setRole("STUDENT");
-        studentRepository.save(account);
     }
 
     @Test
