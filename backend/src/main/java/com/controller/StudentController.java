@@ -1,10 +1,14 @@
 package com.controller;
 
+import com.dto.StudentProfileResponse;
 import com.entity.Student;
 import com.service.StudentService;
 import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.net.URI;
 import java.util.List;
@@ -25,12 +29,17 @@ public class StudentController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Student> getStudentById(@PathVariable Long id) {
+    public ResponseEntity<StudentProfileResponse> getStudentById(@PathVariable Long id, Authentication authentication) {
         Student student = studentService.getStudentById(id);
         if (student == null) {
             return ResponseEntity.notFound().build();
         }
-        return ResponseEntity.ok(student);
+        boolean admin = authentication.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_ADMIN"));
+        if (!admin && !authentication.getName().equalsIgnoreCase(student.getEmail())) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        }
+        return ResponseEntity.ok(StudentProfileResponse.from(student));
     }
 
     @PostMapping
