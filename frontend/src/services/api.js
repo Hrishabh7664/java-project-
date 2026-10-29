@@ -17,6 +17,11 @@ api.interceptors.request.use(
   (config) => {
     const token = window.localStorage.getItem(TOKEN_KEY);
     if (token) config.headers.Authorization = `Bearer ${token}`;
+    // Keep Axios and the browser from sending JSON headers with multipart bodies.
+    // The browser adapter will add the multipart boundary when it sends FormData.
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      config.headers.delete('Content-Type');
+    }
     return config;
   },
   (error) => {
