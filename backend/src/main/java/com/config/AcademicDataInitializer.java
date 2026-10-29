@@ -49,6 +49,7 @@ public class AcademicDataInitializer implements CommandLineRunner {
         String facultyName = code.equals("IT") ? environment.getProperty("DEMO_FACULTY_NAME", "Demo Faculty IT") : "Demo Faculty " + code;
         FacultyProfile profile = faculty.findById(facultyEmail)
                 .orElseGet(() -> faculty.save(new FacultyProfile(facultyEmail, facultyName, department)));
+        provisionFacultyLogin(profile);
         for (String year : List.of("FE", "SE")) {
             AcademicClass cls = classes.findByDepartmentCodeAndAcademicYearAndDivisionAndBatch(code, year, "A", "A1")
                     .orElseGet(() -> classes.save(new AcademicClass(department, year, "A", "A1")));
@@ -72,6 +73,21 @@ public class AcademicDataInitializer implements CommandLineRunner {
                 subjects.save(subject);
             }
         }
+    }
+    private void provisionFacultyLogin(FacultyProfile profile) {
+        if (!Boolean.parseBoolean(environment.getProperty("DEMO_ACCOUNTS_ENABLED", "false"))) return;
+        String password = environment.getProperty("DEMO_FACULTY_PASSWORD", "");
+        if (password.length() < 8) return;
+        Student account = students.findByEmailIgnoreCase(profile.getEmail()).orElseGet(() -> {
+            Student created = new Student();
+            created.setEmail(profile.getEmail());
+            created.setName(profile.getName());
+            return created;
+        });
+        account.setRole("FACULTY");
+        if (account.getPasswordHash() == null || account.getPasswordHash().isBlank())
+            account.setPasswordHash(passwordEncoder.encode(password));
+        students.save(account);
     }
     private void seedStudents(String department, String year, AcademicClass academicClass) {
         String prefix = "demo." + department.toLowerCase() + "." + year.toLowerCase();
