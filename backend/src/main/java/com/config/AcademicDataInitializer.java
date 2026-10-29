@@ -4,6 +4,7 @@ import com.entity.*;
 import com.repository.*;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.env.Environment;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.core.annotation.Order;
 import java.util.List;
@@ -19,13 +20,15 @@ public class AcademicDataInitializer implements CommandLineRunner {
     private final StudentRepository students;
     private final StudentEnrollmentRepository enrollments;
     private final Environment environment;
+    private final PasswordEncoder passwordEncoder;
     public AcademicDataInitializer(DepartmentRepository departments, AcademicClassRepository classes,
                                    SubjectRepository subjects, FacultyProfileRepository faculty,
                                    TeachingAssignmentRepository assignments, StudentRepository students,
-                                   StudentEnrollmentRepository enrollments, Environment environment) {
+                                   StudentEnrollmentRepository enrollments, Environment environment,
+                                   PasswordEncoder passwordEncoder) {
         this.departments = departments; this.classes = classes; this.subjects = subjects;
         this.faculty = faculty; this.assignments = assignments; this.students = students;
-        this.enrollments = enrollments; this.environment = environment;
+        this.enrollments = enrollments; this.environment = environment; this.passwordEncoder = passwordEncoder;
     }
     @Override public void run(String... args) {
         seedDepartment("IT", "Information Technology (Demo)");
@@ -82,11 +85,19 @@ public class AcademicDataInitializer implements CommandLineRunner {
         ensureEnrollment(addStudent(prefix + ".b@tsdcem.ac.in", names[nameIndex + 1], department, year), academicClass);
     }
     private Student addStudent(String email, String name, String department, String academicYear) {
-        return students.findByEmailIgnoreCase(email).orElseGet(() -> {
-            Student student = new Student(name, email, department, academicYear, "A", "Demo student record");
-            student.setBatch("A1");
-            return students.save(student);
+        Student student = students.findByEmailIgnoreCase(email).orElseGet(() -> {
+            Student created = new Student(name, email, department, academicYear, "A", "Demo student record");
+            created.setBatch("A1");
+            return students.save(created);
         });
+        String demoPassword = environment.getProperty("DEMO_STUDENT_PASSWORD", "");
+        boolean demoAccountsEnabled = Boolean.parseBoolean(environment.getProperty("DEMO_ACCOUNTS_ENABLED", "false"));
+        if (demoAccountsEnabled && demoPassword.length() >= 8
+                && (student.getPasswordHash() == null || student.getPasswordHash().isBlank())) {
+            student.setPasswordHash(passwordEncoder.encode(demoPassword));
+            student = students.save(student);
+        }
+        return student;
     }
     private void ensureEnrollment(Student student, AcademicClass academicClass) {
         if (!enrollments.existsByStudentIdAndAcademicClassId(student.getId(), academicClass.getId()))

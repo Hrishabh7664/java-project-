@@ -9,6 +9,7 @@ export const ManageClubs = () => {
   const [category, setCategory] = useState('Technical');
   const [leader, setLeader] = useState('');
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
   const [leaderEmails, setLeaderEmails] = useState({});
   const [savingLeader, setSavingLeader] = useState(null);
@@ -39,15 +40,17 @@ export const ManageClubs = () => {
     setClubs((items) => items.filter((club) => club.id !== id));
   };
   const handleAssignLeader = async (club) => {
-    const email = (leaderEmails[club.id] || club.leaderEmail || '').trim();
+    const email = (leaderEmails[club.id] ?? club.leaderEmail ?? '').trim();
     if (!email) return;
-    setSavingLeader(club.id); setError('');
+    setSavingLeader(club.id); setError(''); setMessage('');
     try {
       const updated = await clubManagementService.updateClub(club.id, {
         name: club.name, category: club.category, description: club.description, activities: club.activities,
         eligibility: club.eligibility, department: club.department, leaderEmail: email
       });
       setClubs((items) => items.map((item) => item.id === club.id ? updated : item));
+      setLeaderEmails((current) => ({ ...current, [club.id]: updated.leaderEmail || '' }));
+      setMessage(`${updated.name} is now assigned to ${updated.leaderEmail}. The student workspace refreshes automatically.`);
     } catch (e) { setError(e.response?.data?.message || 'Club leader could not be assigned.'); }
     finally { setSavingLeader(null); }
   };
@@ -66,6 +69,7 @@ export const ManageClubs = () => {
       </div>
 
       {error && <div className="student-card" role="alert">{error}</div>}
+      {message && <div className="student-card" role="status">{message}</div>}
       {loading && <div className="student-card" role="status">Loading clubs…</div>}
       {!loading && !clubs.length && !error && <div className="student-card">No clubs have been created.</div>}
       <div className="grid-3">
