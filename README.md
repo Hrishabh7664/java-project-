@@ -1,8 +1,3 @@
-vercel deployment
-
-https://java-project-ten-sage.vercel.app/
-
-
 # Campus Connect
 
 Campus Connect is a React single page app backed by Spring Boot REST APIs and MySQL. Student registration and login use BCrypt password hashes and signed JWTs. Faculty and administrator accounts are provisioned by an operator; public registration can only create student accounts.
